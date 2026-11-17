@@ -7,6 +7,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); ver
 
 ### Fixed
 
+- **Dependabot config was invalid after the policy change** — the `ignore` rule omitted the schema-required `dependency-name`, so GitHub's parser rejected the file and Dependabot went fully silent (no updates, majors included). Fixed with the documented `dependency-name: "*"` wildcard; the check only validates post-merge, which motivated a LEARNINGS entry on GitHub-side validation being invisible to CI.
 - **Secret scan crashes on push after history merges** — `gitleaks/gitleaks-action` derived an invalid commit range (`root^..HEAD` is unresolvable when the base is a first-parent root), erroring the job on our first push. Replaced with a direct, version-pinned gitleaks run (`zricethezav/gitleaks:v8.24.3`) over the **full history** on every run — deterministic, fails closed, identical for push and pull_request events. SARIF uploaded as an artifact.
 
 ### Changed
