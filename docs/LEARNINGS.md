@@ -6,6 +6,16 @@ Format: `### YYYY-MM-DD — topic` + a short story.
 
 ---
 
+### 2026-11-17 — GitHub-side validation is invisible to CI (and there is no usable schema for it)
+
+**What:** hours after merging the dependency policy, GitHub reported `Dependabot / .github/dependabot.yml — invalid details` — five minutes _after_ merge, on a check our branch protection cannot require, with Dependabot fully disabled (a config that fails parsing proposes nothing, not even patch updates).
+
+**Why:** the `ignore` rule used `update-types` without `dependency-name`; GitHub's schema requires the name on every entry. CI couldn't catch it because GitHub validates this file **post-merge only** — the same class as the gitleaks-action failure: config consumed by GitHub services, invisible to our five required checks.
+
+**Tried, honestly, and rejected:** validating `dependabot.yml` in CI against SchemaStore's `dependabot.json` — tested before trusting it, and it's the **v1-era schema** (`update_configs`, `version: 1`): it rejects every valid modern config. No maintained public schema for v2 exists, and the dependabot CLI has no lightweight `validate` subcommand. Shipping a validator that cannot fail is theater.
+
+**Now:** `dependency-name: "*"` (the documented wildcard) makes the rule schema-valid. Policy: dependabot.yml changes get deliberate review, and the Dependabot check on `main` is part of the post-merge eyeball routine. Generalized lesson: _for anything GitHub parses server-side, assume CI is blind to it — verify by hand after merge._
+
 ### 2026-11-17 — gitleaks-action derives invalid commit ranges after history merges
 
 **What:** the first push of the merged history (local phase-1 commit + GitHub's "Initial commit") failed the secret-scan job with `ERROR: Unexpected exit code [1]` — no leak found, the scanner itself died.

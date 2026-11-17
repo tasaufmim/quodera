@@ -15,7 +15,10 @@ updates:
       #   declarations); eslint-config-next 16 is native flat config (needs
       #   the FlatCompat shim removed); next 16 changes ADR 0001's pinned
       #   framework. Green CI on a major is not compatibility evidence.
-      - update-types: ["version-update:semver-major"]
+      # dependency-name is REQUIRED on every ignore entry — "*" is the
+      # documented wildcard matching all dependencies.
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: "/"
