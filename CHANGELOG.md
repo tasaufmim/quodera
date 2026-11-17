@@ -5,6 +5,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); ver
 
 ## [Unreleased]
 
+### Added — Phase 2.2: global quotas
+
+- **Upstash driver** behind the existing limiter contract (`@upstash/ratelimit` sliding window): a driver swap with zero HTTP change — proven by the unchanged 429 contract tests and e2e. `getLimiter()` resolves Upstash-when-configured / memory-fallback, and a production deployment without Upstash logs ONE loud error instead of silently degrading to per-instance limits.
+- **Per-IP guard on sensitive auth routes** (10/h): magic-link requests, OAuth starts/returns, token verification — composed inside `withApi` via `withRateLimit`. The 11th request from one IP answers with the shared 429 contract; test-distinguishable from better-auth's internal limiter by the `x-ratelimit-*` headers.
+- **Guest-creation rule staged** at 3/day per IP (ADR 0009) — the rule is live; the `/sign-in/anonymous` endpoint arrives with the anonymous plugin (Phase 2.3).
+- **Quota matrix centralized** in `src/server/rate-limit/policy.ts` — the only place limits are defined (no scattered literals).
+
 ### Added — Phase 2.1: auth core
 
 - **better-auth integration** (passwordless): email magic links + env-gated Google/GitHub OAuth, mounted at `/api/auth/[...all]` through `withApi` (request ids, structured logging, error capture). Lazy singleton keeps builds hermetic; production fails fast without `BETTER_AUTH_SECRET`.
