@@ -1,22 +1,33 @@
+import { eq } from "drizzle-orm";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { anonymous } from "better-auth/plugins/anonymous";
 import { magicLink } from "better-auth/plugins/magic-link";
 import { getDb } from "@/server/db";
 import * as schema from "@/server/db/schema";
 import { env } from "@/server/lib/env";
 import { logger } from "@/server/lib/logger";
+import { GUEST_SESSION_TTL_SECONDS, maybeSweepGuests } from "./purge";
 
 /**
- * Auth core (Phase 2.1, ARCHITECTURE.md §6; system tables documented in
- * schema.ts). Passwordless: OAuth (env-gated — activates when the provider
- * apps exist) + email magic links. The anonymous/guest plugin arrives in
- * Phase 2.3 behind an IP-capped creation route (ADR 0009) — never enabled
- * without that guard.
+ * Auth core (Phase 2.1 + 2.3, ARCHITECTURE.md §5–6). Passwordless: OAuth
+ * (env-gated) + email magic links + one-click guest sessions (ADR 0009).
+ *
+ * Guest safety order matters: the /sign-in/anonymous route was ALREADY
+ * IP-capped at 3/day by the Phase 2.2 guard before this plugin ever shipped —
+ * no unguarded guest endpoint existed at any point.
  */
 
 export interface CreateAuthOverrides {
   /** Injectable for tests — the production sender logs in dev, errors in prod. */
   sendMagicLink?: (data: { email: string; url: string; token: string }) => Promise<void>;
+  /**
+   * Injectable for tests — fires when a guest registers a real identity.
+   * Receives BOTH ids: the retiring ghost and the new registered user. This
+   * is the sanctioned data-carry-over point (ADR 0009 postscript) — Phase 2.4
+   * copies tenant rows from → to here, before the plugin deletes the ghost.
+   */
+  onLinkAccount?: (data: { anonymousUserId: string; newUserId: string }) => Promise<void>;
 }
 
 export function createAuth(overrides: CreateAuthOverrides = {}) {
@@ -40,7 +51,65 @@ export function createAuth(overrides: CreateAuthOverrides = {}) {
         ? { github: { clientId: env.GITHUB_CLIENT_ID, clientSecret: env.GITHUB_CLIENT_SECRET } }
         : {}),
     },
-    plugins: [magicLink({ sendMagicLink: overrides.sendMagicLink ?? defaultSendMagicLink })],
+    plugins: [
+      magicLink({ sendMagicLink: overrides.sendMagicLink ?? defaultSendMagicLink }),
+      anonymous({
+        // Upgrade semantics (ADR 0009 postscript): for email sign-ups
+        // better-auth creates the registered user and DELETES the ghost —
+        // onLinkAccount receives both users and is where trial data is carried
+        // over (tenant rows: ghost → registered, from Phase 2.4 onward).
+        onLinkAccount: async (data) => {
+          const anonymousUserId = data.anonymousUser.user.id;
+          const newUserId = data.newUser.user.id;
+
+          if (overrides.onLinkAccount) {
+            await overrides.onLinkAccount({ anonymousUserId, newUserId });
+            return;
+          }
+          // production log: the conversion moment, ids only — no PII
+          logger.info(
+            { upgradedFromAnonymous: true, fromUserId: anonymousUserId, toUserId: newUserId },
+            "guest upgraded to registered account",
+          );
+        },
+      }),
+    ],
+    databaseHooks: {
+      user: {
+        create: {
+          after: async (user) => {
+            if (user.isAnonymous) {
+              // lazy sweep backstop (purge.ts) — never blocks creation
+              maybeSweepGuests();
+            }
+          },
+        },
+      },
+      session: {
+        create: {
+          before: async (session) => {
+            const [user] = await getDb()
+              .select({ isAnonymous: schema.user.isAnonymous })
+              .from(schema.user)
+              .where(eq(schema.user.id, session.userId))
+              .limit(1);
+
+            if (!user?.isAnonymous) return;
+
+            // Hard 24h TTL for guest sessions (ADR 0009). The session-refresh
+            // window (updateAge: 1 day) is never reached before expiry, so a
+            // create-time clamp is sufficient — guest sessions cannot be
+            // refreshed into longevity.
+            return {
+              data: {
+                ...session,
+                expiresAt: new Date(Date.now() + GUEST_SESSION_TTL_SECONDS * 1000),
+              },
+            };
+          },
+        },
+      },
+    },
   });
 }
 

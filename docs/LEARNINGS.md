@@ -6,6 +6,28 @@ Format: `### YYYY-MM-DD — topic` + a short story.
 
 ---
 
+### 2026-11-17 — Parallel test FILES race on a shared physical database
+
+**What:** after adding the guest suite, passing tests started failing randomly-ish: a magic-link user "vanished" mid-test, and a just-created guest row was missing. The same suites passed individually.
+
+**Why:** every DB-backed test file truncates its fixtures in `beforeEach` — and vitest runs FILES in parallel. Four suites sharing one physical Postgres meant one file's truncate wiped another file's in-flight rows. It was latent with three fast files; a fourth, slower one surfaced it.
+
+**Now:** `fileParallelism: false` in vitest.config.mts — integration suites sharing a database run sequentially. Within a file, tests already run serially. (The lesson generalizes: parallelism needs isolation; a shared database is not isolation.)
+
+### 2026-11-17 — Library semantics beat design sketches — and tests are how you find out
+
+**What:** ADR 0009 assumed guest→registered upgrade links the SAME `user_id` in place. better-auth's anonymous plugin actually creates a NEW registered user and deletes the ghost, handing both to `onLinkAccount`.
+
+**Why it mattered:** with tenant tables live, an in-place assumption would have silently orphaned every guest's trial documents at signup.
+
+**Now:** the upgrade integration test pins the actual contract — ghost deleted, registered user created, and the hook receives both ids. `onLinkAccount` is the sanctioned data-carry-over point for Phase 2.4. The ADR carries a postscript; designs are hypotheses until a test touches them.
+
+### 2026-11-17 — postgres.js template parameters cannot live inside quoted literals
+
+**What:** `now() - interval '${hours}'` exploded with a type error — postgres.js substitutes `${…}` as `$n` placeholders regardless of SQL context, so the placeholder landed inside a quoted string.
+
+**Now:** intervals and similar literals are written as SQL text (`interval '49 hours'`), parameters only where they bind to typed positions.
+
 ### 2026-11-17 — Session resolution is chicken-and-egg with user-scoped RLS
 
 **What:** the reflex move was applying the canary pattern (RLS on everything) to better-auth's tables too.
