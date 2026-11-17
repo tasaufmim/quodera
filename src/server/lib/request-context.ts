@@ -6,7 +6,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
  * runWithContext; anything deeper uses getRequestContext().
  *
  * NOTE: this is Node-runtime only — edge middleware runs in a separate
- * runtime and cannot see these values (see ARCHITECTURE.md §runtimes).
+ * runtime and cannot see these values (see ARCHITECTURE.md §9, runtimes).
  */
 export interface RequestContext {
   requestId: string;

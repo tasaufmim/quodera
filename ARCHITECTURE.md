@@ -129,8 +129,21 @@ WITH CHECK (user_id = current_setting('app.user_id', true)::uuid)
 - `withUser(userId, fn)` (src/server/db/rls.ts) is the only sanctioned entry point — it opens the transaction and sets the context atomically.
 - Belt and braces: RLS sits _under_ the application layer. A future bug in query building still cannot cross tenants, because the database itself refuses.
 - **Two roles, two powers** (learned the hard way — see ADR 0008 postscript): the app connects as the unprivileged `quodera_app` role (`DATABASE_URL`); migrations and fixtures use the admin role (`DATABASE_ADMIN_URL`). Superusers bypass RLS categorically, so the runtime role must never be one — the tenancy tests connect as the runtime role and would catch a regression to a privileged connection.
+- Guests are ordinary tenants (ADR 0009): a guest is a `users` row flagged `isAnonymous`, nothing more. No RLS carve-out exists anywhere in the system — a deliberate selection criterion for the guest design.
 
-## 5. Data model draft 📍 (Phase 2 — ERD)
+## 5. Access model 📍 (Phase 2 — ADR 0009)
+
+| State                                | Can do                                                                       | Cannot do                                          |
+| ------------------------------------ | ---------------------------------------------------------------------------- | -------------------------------------------------- |
+| anonymous                            | marketing pages, status endpoints                                            | anything in `(app)`                                |
+| guest (one click, no PII, no signup) | capped workspace: 2 docs (≤10 pages, ≤5 MB each), chat 5 msgs/day, citations | cloud sync, BYO persistence, caps above guest tier |
+| registered                           | full workspace, sync toggle, BYO key                                         | —                                                  |
+
+Transitions: **"Try as guest"** mints a ghost `users` row (`isAnonymous`) plus a standard session — creation is IP-capped (3/day per IP). Registering links the **same `user_id`**, so trial documents and threads carry over. Guest sessions expire after 24h; guest data is purged ≤48h by a daily Vercel cron (`/api/cron/purge-guests`, `CRON_SECRET`-guarded, admin connection) with a lazy sweep on guest creation as backstop.
+
+Enforcement is server-side in every handler (a three-state session check), never UI-only. Guests get no special tenancy treatment — `withUser()` and RLS behave identically for them.
+
+## 6. Data model draft 📍 (Phase 2 — ERD)
 
 ```mermaid
 erDiagram
@@ -182,27 +195,29 @@ erDiagram
 
 Every table above copies the canary pattern: `user_id NOT NULL` + RLS + FORCE + policies + tenancy tests (GUARDRAILS #2).
 
-## 6. Retrieval design 📍 (Phase 4)
+## 7. Retrieval design 📍 (Phase 4)
 
 - **Hybrid first, always.** Dense vectors are weak on exact identifiers (clause numbers, defined terms, names — the bread and butter of legal docs). Every query runs tsvector (exact/BM25-ish) and pgvector (cosine, HNSW) together; results are fused (RRF).
 - **Rerank** the fused top-k (cross-encoder or LLM-judge) before generation; only rerank winners enter the context window.
 - **Conversational rewriting:** follow-ups like "what about page 3?" are rewritten against thread history before retrieval.
 - **Refusal is a feature:** when fused scores are below threshold, the assistant answers "the documents don't cover this" instead of hallucinating. Evaluated in the golden set (Phase 6).
 
-## 7. Rate limiting
+## 8. Rate limiting
 
 Two layers, one HTTP contract (src/server/rate-limit/):
 
-| Layer                                                             | Driver                   | Scope             | Phase |
-| ----------------------------------------------------------------- | ------------------------ | ----------------- | ----- |
-| Limiter interface + 429 contract (`retry-after`, `x-ratelimit-*`) | —                        | all routes        | ✅ 1  |
-| Per-instance sliding window                                       | in-memory                | demo-limited      | ✅ 1  |
-| Global per-user/IP quotas                                         | Upstash Redis (free)     | all public routes | 2     |
-| LLM spend caps (demo pool 5 msgs/day, BYO unlimited)              | proxy counters + Upstash | /api/chat         | 4     |
+| Layer                                                             | Driver                   | Scope                      | Phase |
+| ----------------------------------------------------------------- | ------------------------ | -------------------------- | ----- |
+| Limiter interface + 429 contract (`retry-after`, `x-ratelimit-*`) | —                        | all routes                 | ✅ 1  |
+| Per-instance sliding window                                       | in-memory                | demo-limited               | ✅ 1  |
+| Auth-route abuse guard                                            | Upstash Redis (free)     | /api/auth/\* — 10/h per IP | 2     |
+| Guest-session creation cap                                        | Upstash Redis (free)     | 3/day per IP (ADR 0009)    | 2     |
+| Global per-user/IP quotas (incl. guest tiers)                     | Upstash Redis (free)     | all public routes          | 2     |
+| LLM spend caps (demo pool 5 msgs/day, BYO unlimited)              | proxy counters + Upstash | /api/chat                  | 4     |
 
-The in-memory driver is **per serverless instance** — fine for proving the contract, wrong for real quotas; that's why the interface exists (ADR 0007).
+The in-memory driver is **per serverless instance** — fine for proving the contract, wrong for real quotas; that's why the interface exists (ADR 0007). Guest quotas (ADR 0009): chat 5 msgs/day, uploads 2 documents (≤10 pages, ≤5 MB) with 3 uploads/hour — all constants live in one module, never scattered literals.
 
-## 8. Runtimes (a trap we've defused)
+## 9. Runtimes (a trap we've defused)
 
 | Runtime                                  | Runs          | Can use                   | Cannot use                                     |
 | ---------------------------------------- | ------------- | ------------------------- | ---------------------------------------------- |
@@ -211,13 +226,14 @@ The in-memory driver is **per serverless instance** — fine for proving the con
 
 Request IDs therefore originate in `withApi` (Node), not middleware. The future edge-side limiter must be Upstash's fetch-based API — the abstraction already assumes this.
 
-## 9. Observability
+## 10. Observability
 
 - **Structured logs** (pino): `requestId`, `route`, `status`, `durationMs` on every request; secrets redacted by path (tested in logger.test.ts).
 - **Error tracking** (Sentry): initialized only when `SENTRY_DSN` is set — local dev and hermetic builds never depend on it. `onRequestError` + `global-error.tsx` cover both server and client.
 - **Probes:** `/api/health` (liveness — zero dependencies), `/api/ready` (readiness — pings DB, 503 when degraded). BetterStack pings health hourly; deploy-smoke.yml asserts it after deploys.
+- **Guest purge cron 📍 (Phase 2):** daily Vercel cron hits `/api/cron/purge-guests` (verified by `CRON_SECRET`, runs on the admin connection, cascade-deletes expired guest data R2 → chunks → documents → threads → audit).
 
-## 10. Failure modes we design around
+## 11. Failure modes we design around
 
 | Failure                               | Behavior                                                                                                        |
 | ------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
@@ -227,11 +243,12 @@ Request IDs therefore originate in `withApi` (Node), not middleware. The future 
 | LLM hallucinated a citation           | post-generation verifier re-checks span entailment; unverified citations are flagged in UI (Phase 4)            |
 | Prompt injection inside a document    | chunks are data, never instructions: system prompt isolation + output filtering (SECURITY.md §prompt-injection) |
 | Region-local limiter drift            | contract tests + Upstash migration (Phase 2)                                                                    |
+| Guest farming via VPN                 | IP-capped creation + TTL purge; residual risk accepted (ADR 0009)                                               |
 
-## 11. Phasing
+## 12. Phasing
 
 1. ✅ Foundation — scaffold, CI/CD, tenancy canary, observability, limiter contract
-2. Auth (better-auth), domain schema, Upstash quotas, hardened uploads
+2. Auth (better-auth: OAuth + magic links + guest ghost accounts, ADR 0009), domain schema, Upstash quotas incl. guest tiers, hardened uploads with guest caps, three-state gating
 3. Ingest: parsing, chunking w/ provenance, embeddings, indexing
 4. Retrieval + cited generation + SSE + LLM proxy
 5. OCR worker + scanned/image pipeline + tables

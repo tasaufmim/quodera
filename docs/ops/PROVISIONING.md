@@ -88,6 +88,18 @@ pnpm dev
 - BetterStack monitor: `GET <prod-url>/api/health`, 5-min interval, 2 failures = incident.
 - Sentry: create project → copy DSN → `SENTRY_DSN` + `NEXT_PUBLIC_SENTRY_DSN` in Vercel → redeploy. Verify with a forced error in a preview deployment.
 
+## 9. Vercel Cron — guest purge (Phase 2, ADR 0009)
+
+1. Add to `vercel.json` (create at repo root when wiring this up):
+
+   ```json
+   { "crons": [{ "path": "/api/cron/purge-guests", "schedule": "0 3 * * *" }] }
+   ```
+
+2. Set `CRON_SECRET` in Vercel (Production) — the purge route verifies it before any database work.
+3. Hobby's once-a-day cadence fits the ≤48h purge window by design (guest session TTL is 24h); the lazy sweep on guest-session creation is the backstop that keeps the guarantee even if a cron run is missed.
+4. Guest caps (2 docs / ≤10 pages / ≤5 MB / 3 uploads per hour / 5 msgs per day / 3 guest sessions per IP per day) live as named constants in ONE module — env-overridable, never scattered literals.
+
 ## First-deploy checklist
 
 - [ ] `main` pushed, all five CI jobs green

@@ -15,6 +15,8 @@ Every change to this repo is reviewed against these. They are deliberately few, 
 | 9   | **Env vars are declared, not discovered.** App-read vars go in `src/server/lib/env.ts` + `.env.example`; script/CI-only vars are documented in `.env.example` — same commit.          | env.ts parse, review, PR checklist                      |
 | 10  | **Docs follow decisions.** A change that invalidates ARCHITECTURE.md / SECURITY.md / an ADR updates it in the same commit.                                                            | PR template, review                                     |
 
+_Note on #2:_ system jobs — migrations and the guest-purge cron (ADR 0008/0009) — run on the **admin connection** by design. They are not tenant access paths, never serve request traffic, and are the only sanctioned uses of admin powers.
+
 ## Why so absolute?
 
 Guardrail #2 is the one that cannot ever be "just this once": a single tenant table without FORCE'd RLS is a cross-tenant leak wearing a feature branch's clothes. The same reasoning scales down: the checklist is cheap; the class of bug it prevents is catastrophic.
