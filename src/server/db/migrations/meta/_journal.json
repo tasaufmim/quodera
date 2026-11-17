@@ -8,6 +8,13 @@
       "when": 1794908455550,
       "tag": "0000_worthless_smasher",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794940538775,
+      "tag": "0001_cold_dust",
+      "breakpoints": true
     }
   ]
 }

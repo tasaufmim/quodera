@@ -6,6 +6,14 @@ Format: `### YYYY-MM-DD — topic` + a short story.
 
 ---
 
+### 2026-11-17 — Session resolution is chicken-and-egg with user-scoped RLS
+
+**What:** the reflex move was applying the canary pattern (RLS on everything) to better-auth's tables too.
+
+**Why it can't work:** session lookup happens **by token, before any tenant context exists** — `select session where token = ?` is cross-user by construction. RLS keyed on `app.user_id` would default-deny the login flow itself; and you can't `withUser()` your way to a session you don't have yet.
+
+**Now:** identity tables (`user`, `session`, `account`, `verification`) are **system tables** — no user-scoped RLS, written only by better-auth's parameterized queries on the runtime role. The tenancy wall governs everything downstream of a `user_id` FK. Distinguishing the two trust domains (identity machinery vs tenant data) is the actual lesson; blanket "RLS everywhere" is not a design.
+
 ### 2026-11-17 — GitHub-side validation is invisible to CI (and there is no usable schema for it)
 
 **What:** hours after merging the dependency policy, GitHub reported `Dependabot / .github/dependabot.yml — invalid details` — five minutes _after_ merge, on a check our branch protection cannot require, with Dependabot fully disabled (a config that fails parsing proposes nothing, not even patch updates).

@@ -57,6 +57,9 @@ jobs:
       # Admin role (container superuser) — migrations & fixtures only
       DATABASE_ADMIN_URL: postgres://postgres:postgres@localhost:5432/quodera_test
       APP_DB_PASSWORD: quodera_app_dev
+      # Auth (magic-link flow tests) — deterministic values, not secrets
+      BETTER_AUTH_SECRET: ci-auth-test-secret-0123456789abcdef
+      BETTER_AUTH_URL: http://localhost:3000
     steps:
       - uses: actions/checkout@v7
 

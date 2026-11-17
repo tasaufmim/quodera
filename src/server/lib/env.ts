@@ -6,7 +6,8 @@ import { z } from "zod";
  */
 const emptyToUndefined = (value: unknown): unknown => (value === "" ? undefined : value);
 
-const optionalSecret = z.preprocess(emptyToUndefined, z.string().min(1).optional());
+/** Optional, non-empty string (empty string is treated as unset). */
+const optionalString = z.preprocess(emptyToUndefined, z.string().min(1).optional());
 
 /**
  * Environment variables the app actually reads, validated once at import.
@@ -21,12 +22,18 @@ const envSchema = z.object({
     emptyToUndefined,
     z.enum(["development", "test", "production"]).default("development"),
   ),
-  DATABASE_URL: optionalSecret,
+  DATABASE_URL: optionalString,
   LOG_LEVEL: z.preprocess(
     emptyToUndefined,
     z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
   ),
-  SENTRY_DSN: optionalSecret,
+  SENTRY_DSN: optionalString,
+  BETTER_AUTH_SECRET: optionalString,
+  BETTER_AUTH_URL: optionalString,
+  GOOGLE_CLIENT_ID: optionalString,
+  GOOGLE_CLIENT_SECRET: optionalString,
+  GITHUB_CLIENT_ID: optionalString,
+  GITHUB_CLIENT_SECRET: optionalString,
 });
 
 export type Env = z.infer<typeof envSchema>;
