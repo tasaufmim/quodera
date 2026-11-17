@@ -92,8 +92,8 @@ Email **security@quodera.dev** (configure when the domain lands — PROVISIONING
 
 ## Security debt register
 
-| ID                | Item                                                | Introduced | Target            |
-| ----------------- | --------------------------------------------------- | ---------- | ----------------- |
-| SECURITY-DEBT-001 | CSP script-src uses `'unsafe-inline'` (no nonces)   | Phase 1    | Phase 2 hardening |
-| SECURITY-DEBT-002 | GitHub Actions referenced by tag, not commit SHA    | Phase 1    | Phase 2 CI polish |
-| SECURITY-DEBT-003 | In-memory rate limiter is per-instance (not global) | Phase 1    | Phase 2 (Upstash) |
+| ID                | Item                                                                                             | Introduced                              | Target            |
+| ----------------- | ------------------------------------------------------------------------------------------------ | --------------------------------------- | ----------------- |
+| SECURITY-DEBT-001 | CSP script-src uses `'unsafe-inline'` (no nonces)                                                | Phase 1                                 | Phase 2 hardening |
+| SECURITY-DEBT-002 | Actions/images pinned by tag, not commit SHA / digest (gitleaks: `zricethezav/gitleaks:v8.24.3`) | Phase 1 (updated in fix/ci-secret-scan) | Phase 2 CI polish |
+| SECURITY-DEBT-003 | In-memory rate limiter is per-instance (not global)                                              | Phase 1                                 | Phase 2 (Upstash) |

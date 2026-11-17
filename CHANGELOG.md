@@ -5,6 +5,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); ver
 
 ## [Unreleased]
 
+### Fixed
+
+- **Secret scan crashes on push after history merges** — `gitleaks/gitleaks-action` derived an invalid commit range (`root^..HEAD` is unresolvable when the base is a first-parent root), erroring the job on our first push. Replaced with a direct, version-pinned gitleaks run (`zricethezav/gitleaks:v8.24.3`) over the **full history** on every run — deterministic, fails closed, identical for push and pull_request events. SARIF uploaded as an artifact.
+
+### Changed
+
+- **Dependency policy: npm major versions are never auto-bumped.** Dependabot now ignores `semver-major` npm updates; majors (TypeScript 6, eslint-config-next 16, Next 16…) are deliberate, ADR-backed upgrades. GitHub-Actions majors remain allowed (they resolve runner deprecation warnings). Rationale recorded in `docs/LEARNINGS.md` and the closed Dependabot PRs (#5, #6, #7).
+
 ## [0.1.0] — 2026-11-17
 
 ### Added — Phase 1: foundation
