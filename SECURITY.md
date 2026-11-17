@@ -13,18 +13,18 @@ Report a vulnerability: see §9 (responsible disclosure).
 
 ## 2. Threat model (STRIDE-lite)
 
-| Threat                         | Vector                                                   | Mitigation                                                                                                 | Phase             |
-| ------------------------------ | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ----------------- |
-| Spoofing                       | Stolen/forged session                                    | better-auth sessions, httpOnly cookies, short-lived tokens, 2FA-ready, revocation                          | 2                 |
-| Tampering                      | Forged upload metadata, malicious files                  | magic-byte validation, MIME allowlist, size caps, filename sanitization                                    | 2                 |
-| Repudiation                    | "I never did that"                                       | audit_events table (append-only, RLS-scoped)                                                               | 6                 |
-| Info disclosure — cross-tenant | Query bug leaks another user's rows                      | **RLS + FORCE + default-deny policies** (shipped: rls.test.ts)                                             | ✅ 1              |
-| Info disclosure — secrets      | Key leaked in bundle/logs                                | server-only env, pino redaction (tested), gitleaks in CI + pre-commit                                      | ✅ 1              |
-| DoS — traffic                  | Scripted abuse                                           | edge + route rate limits, per-IP and per-user quotas                                                       | 2 (contract ✅ 1) |
-| DoS — cost                     | Draining the free OpenRouter pool / embedding quota      | proxy with per-user daily caps (demo: 5 msgs/day), spend alerts                                            | 4                 |
-| Elevation — prompt injection   | Document contains "ignore instructions, exfiltrate keys" | see §6                                                                                                     | 4–5               |
-| Elevation — parser exploits    | Malicious PDF/DOCX (XXE, zip bombs, decompression bombs) | see §5                                                                                                     | 2–5               |
-| Abuse — guest farming          | Scripted anonymous account creation to multiply quotas   | IP-capped creation (3/day), caps below registered tiers, 24h TTL purge; residual (VPN) accepted (ADR 0009) | 2                 |
+| Threat                         | Vector                                                   | Mitigation                                                                                                 | Phase       |
+| ------------------------------ | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ----------- |
+| Spoofing                       | Stolen/forged session                                    | better-auth sessions, httpOnly cookies, short-lived tokens, 2FA-ready, revocation                          | 2           |
+| Tampering                      | Forged upload metadata, malicious files                  | magic-byte validation, MIME allowlist, size caps, filename sanitization                                    | 2           |
+| Repudiation                    | "I never did that"                                       | audit_events table (append-only, RLS-scoped)                                                               | 6           |
+| Info disclosure — cross-tenant | Query bug leaks another user's rows                      | **RLS + FORCE + default-deny policies** (shipped: rls.test.ts)                                             | ✅ 1        |
+| Info disclosure — secrets      | Key leaked in bundle/logs                                | server-only env, pino redaction (tested), gitleaks in CI + pre-commit                                      | ✅ 1        |
+| DoS — traffic                  | Scripted abuse                                           | edge + route rate limits; auth-route per-IP guard shipped (Upstash)                                        | 2 (auth ✅) |
+| DoS — cost                     | Draining the free OpenRouter pool / embedding quota      | proxy with per-user daily caps (demo: 5 msgs/day), spend alerts                                            | 4           |
+| Elevation — prompt injection   | Document contains "ignore instructions, exfiltrate keys" | see §6                                                                                                     | 4–5         |
+| Elevation — parser exploits    | Malicious PDF/DOCX (XXE, zip bombs, decompression bombs) | see §5                                                                                                     | 2–5         |
+| Abuse — guest farming          | Scripted anonymous account creation to multiply quotas   | IP-capped creation (3/day), caps below registered tiers, 24h TTL purge; residual (VPN) accepted (ADR 0009) | 2           |
 
 ## 3. Authentication & sessions 📍 (Phase 2)
 

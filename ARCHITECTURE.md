@@ -208,16 +208,17 @@ Every table above copies the canary pattern: `user_id NOT NULL` + RLS + FORCE + 
 
 Two layers, one HTTP contract (src/server/rate-limit/):
 
-| Layer                                                             | Driver                   | Scope                      | Phase |
-| ----------------------------------------------------------------- | ------------------------ | -------------------------- | ----- |
-| Limiter interface + 429 contract (`retry-after`, `x-ratelimit-*`) | —                        | all routes                 | ✅ 1  |
-| Per-instance sliding window                                       | in-memory                | demo-limited               | ✅ 1  |
-| Auth-route abuse guard                                            | Upstash Redis (free)     | /api/auth/\* — 10/h per IP | 2     |
-| Guest-session creation cap                                        | Upstash Redis (free)     | 3/day per IP (ADR 0009)    | 2     |
-| Global per-user/IP quotas (incl. guest tiers)                     | Upstash Redis (free)     | all public routes          | 2     |
-| LLM spend caps (demo pool 5 msgs/day, BYO unlimited)              | proxy counters + Upstash | /api/chat                  | 4     |
+| Layer                                                             | Driver                   | Scope                                                                           | Phase |
+| ----------------------------------------------------------------- | ------------------------ | ------------------------------------------------------------------------------- | ----- |
+| Limiter interface + 429 contract (`retry-after`, `x-ratelimit-*`) | —                        | all routes                                                                      | ✅ 1  |
+| Per-instance sliding window                                       | in-memory                | demo-limited (dev/test)                                                         | ✅ 1  |
+| Driver resolution (`getLimiter()`)                                | Upstash ⇄ memory         | —                                                                               | ✅ 2  |
+| Auth-route abuse guard                                            | Upstash (memory in dev)  | /api/auth sign-in/verify/callback — 10/h per IP                                 | ✅ 2  |
+| Guest-session creation cap                                        | Upstash (memory in dev)  | 3/day per IP (ADR 0009) — rule live, endpoint arrives with the anonymous plugin | 2.3   |
+| Global per-user quotas (incl. guest tiers)                        | Upstash                  | all public routes                                                               | 2     |
+| LLM spend caps (demo pool 5 msgs/day, BYO unlimited)              | proxy counters + Upstash | /api/chat                                                                       | 4     |
 
-The in-memory driver is **per serverless instance** — fine for proving the contract, wrong for real quotas; that's why the interface exists (ADR 0007). Guest quotas (ADR 0009): chat 5 msgs/day, uploads 2 documents (≤10 pages, ≤5 MB) with 3 uploads/hour — all constants live in one module, never scattered literals.
+`getLimiter()` (src/server/rate-limit/limiter.ts) resolves Upstash when `UPSTASH_REDIS_REST_URL/TOKEN` are set and falls back to per-instance memory otherwise — with ONE loud production error, never silence. Quotas live in exactly one module, `rate-limit/policy.ts`; routes compose `withRateLimit(route, POLICY.x, handler)` inside `withApi`, so a driver swap cannot change the HTTP surface (pinned by headers.test.ts and e2e). Guest quotas (ADR 0009): chat 5 msgs/day, uploads 2 documents (≤10 pages, ≤5 MB) with 3 uploads/hour.
 
 ## 9. Runtimes (a trap we've defused)
 
