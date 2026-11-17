@@ -1,0 +1,10 @@
+allowBuilds:
+  esbuild: true
+  lefthook: true
+# Single-package repo — this file exists for pnpm settings (pnpm 12+ reads
+# settings from here instead of package.json's "pnpm" field).
+# See https://pnpm.io/settings
+
+# Dependencies whose install scripts we explicitly trust to run.
+# esbuild: needs its platform binary for tsx/vitest.
+# lefthook: installs git hooks on `pnpm install` (prepare script).

@@ -1,0 +1,27 @@
+name: Deploy smoke
+
+# Vercel deploys automatically on push to main; this workflow verifies the
+# production deployment is actually healthy. Set the repository variable
+# PROD_URL (Settings → Secrets and variables → Actions → Variables) — see
+# docs/ops/PROVISIONING.md. Until then, the probe exits neutrally.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 * * * *" # hourly
+
+jobs:
+  probe:
+    name: probe production /api/health
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe
+        env:
+          PROD_URL: ${{ vars.PROD_URL }}
+        run: |
+          if [ -z "$PROD_URL" ]; then
+            echo "vars.PROD_URL is not configured — skipping (docs/ops/PROVISIONING.md §deploy-smoke)."
+            exit 0
+          fi
+          curl -fsS --retry 5 --retry-delay 10 --retry-connrefused "$PROD_URL/api/health"
+          echo "production is healthy"

@@ -1,0 +1,26 @@
+# Local development database: Postgres 17 + pgvector.
+# Mirrors the CI service container (.github/workflows/ci.yml) and Neon (prod).
+#
+#   pnpm db:up      # start
+#   pnpm db:down    # stop (add -v to also wipe the volume)
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    container_name: quodera-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: quodera
+    ports:
+      # 5433 on the host so it never collides with an existing local Postgres
+      - "5433:5432"
+    volumes:
+      - quodera_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d quodera"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+volumes:
+  quodera_pgdata:

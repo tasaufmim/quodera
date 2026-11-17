@@ -1,0 +1,17 @@
+# lefthook — fast git hooks (https://lefthook.dev)
+# Installed automatically on `pnpm install` via the `prepare` script.
+
+pre-commit:
+  parallel: true
+  commands:
+    typecheck:
+      run: pnpm typecheck
+    lint:
+      run: pnpm lint
+    format:
+      run: pnpm format:check
+
+commit-msg:
+  commands:
+    commitlint:
+      run: pnpm exec commitlint --edit {1}
