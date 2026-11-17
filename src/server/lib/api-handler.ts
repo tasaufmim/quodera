@@ -34,7 +34,7 @@ export function withApi(route: string, handler: ApiHandler, options?: WithApiOpt
 
       try {
         const response = await handler(request);
-        response.headers.set("x-request-id", requestId);
+        setRequestId(response, requestId);
         requestLogger.info(
           { status: response.status, durationMs: Date.now() - startedAt },
           "request completed",
@@ -44,11 +44,24 @@ export function withApi(route: string, handler: ApiHandler, options?: WithApiOpt
         captureException(error, { route, requestId });
         requestLogger.error({ err: serializeError(error) }, "request failed");
         const response = Response.json({ error: "internal_error", requestId }, { status: 500 });
-        response.headers.set("x-request-id", requestId);
+        setRequestId(response, requestId);
         return response;
       }
     });
   };
+}
+
+/**
+ * Some responses (e.g. `Response.redirect()`, used by OAuth callbacks) have
+ * IMMUTABLE headers — setting ours would throw and turn a working redirect
+ * into a 500. Best effort: attach the id when possible, never fail on it.
+ */
+function setRequestId(response: Response, requestId: string): void {
+  try {
+    response.headers.set("x-request-id", requestId);
+  } catch {
+    // immutable headers — the response body already carries the id in errors
+  }
 }
 
 function serializeError(error: unknown): Record<string, unknown> {

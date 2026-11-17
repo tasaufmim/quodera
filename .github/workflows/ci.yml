@@ -57,6 +57,9 @@ jobs:
       # Admin role (container superuser) — migrations & fixtures only
       DATABASE_ADMIN_URL: postgres://postgres:postgres@localhost:5432/quodera_test
       APP_DB_PASSWORD: quodera_app_dev
+      # Auth (magic-link flow tests) — deterministic value, deliberately not secret
+      BETTER_AUTH_SECRET: test-only-value-not-a-secret
+      BETTER_AUTH_URL: http://localhost:3000
     steps:
       - uses: actions/checkout@v7
 
@@ -77,6 +80,29 @@ jobs:
   e2e:
     name: e2e smoke (production build)
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: quodera_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d quodera_test"
+          --health-interval 2s
+          --health-timeout 2s
+          --health-retries 30
+    env:
+      # e2e exercises the production runtime, so it gets a real Postgres and
+      # auth config like deployment. (The BUILD stays hermetic — proven by the
+      # quality job building with no DATABASE_URL at all.)
+      DATABASE_URL: postgres://quodera_app:quodera_app_dev@localhost:5432/quodera_test
+      DATABASE_ADMIN_URL: postgres://postgres:postgres@localhost:5432/quodera_test
+      APP_DB_PASSWORD: quodera_app_dev
+      BETTER_AUTH_SECRET: test-only-value-not-a-secret
+      BETTER_AUTH_URL: http://localhost:3000
     steps:
       - uses: actions/checkout@v7
 
@@ -89,10 +115,9 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm db:migrate
       - run: pnpm build
       - run: pnpm test:e2e
-        env:
-          DATABASE_URL: ""
 
   commitlint:
     name: commit messages

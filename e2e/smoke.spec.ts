@@ -47,3 +47,17 @@ test("demo-limited returns 429 with Retry-After once the quota is spent", async 
   expect(Number(denied.headers()["retry-after"])).toBeGreaterThan(0);
   expect(denied.headers()["x-ratelimit-remaining"]).toBe("0");
 });
+
+test("auth catch-all is mounted and wrapped by withApi", async ({ request }) => {
+  const response = await request.get("/api/auth/get-session");
+
+  // mounted (better-auth answers) and wrapped (withApi's request id present)
+  expect([200, 401]).toContain(response.status());
+  expect(response.headers()["x-request-id"]).toMatch(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+  );
+
+  // must answer JSON (better-auth returns null for an anonymous request —
+  // we pin only what we own: the route answers, wrapped, with valid JSON)
+  await expect(response.json()).resolves.toBeDefined();
+});

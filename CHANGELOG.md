@@ -5,6 +5,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); ver
 
 ## [Unreleased]
 
+### Added — Phase 2.1: auth core
+
+- **better-auth integration** (passwordless): email magic links + env-gated Google/GitHub OAuth, mounted at `/api/auth/[...all]` through `withApi` (request ids, structured logging, error capture). Lazy singleton keeps builds hermetic; production fails fast without `BETTER_AUTH_SECRET`.
+- **Identity system tables** (`user`, `session`, `account`, `verification`) with FK cascades — deliberately _not_ user-scoped RLS (session resolution precedes tenant context; system vs tenant trust domains documented in ARCHITECTURE §6 and LEARNINGS). `isAnonymous` column ready for guest mode (ADR 0009); the plugin itself enables in Phase 2.3 behind the IP-capped creation route.
+- **Auth integration tests**: full magic-link round trip through the real HTTP handler, one-time-token replay rejection, system-table row assertions. E2E asserts the auth route is mounted and wrapped.
+- `withApi` now tolerates immutable response headers (OAuth redirect responses).
+
 ### Fixed
 
 - **Dependabot config was invalid after the policy change** — the `ignore` rule omitted the schema-required `dependency-name`, so GitHub's parser rejected the file and Dependabot went fully silent (no updates, majors included). Fixed with the documented `dependency-name: "*"` wildcard; the check only validates post-merge, which motivated a LEARNINGS entry on GitHub-side validation being invisible to CI.

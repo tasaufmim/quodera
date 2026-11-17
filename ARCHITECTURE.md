@@ -145,17 +145,19 @@ Enforcement is server-side in every handler (a three-state session check), never
 
 ## 6. Data model draft 📍 (Phase 2 — ERD)
 
+**System tables vs tenant tables.** better-auth's identity tables (`user`, `session`, `account`, `verification` — shipped in Phase 2.1) are **system tables**: they carry no user-scoped RLS, because session resolution looks up by token _before any tenant context exists_ — chicken-and-egg with `withUser`. They are written only by better-auth's parameterized queries on the runtime role. Everything downstream of a `user_id` FK is **tenant data** and copies the canary pattern (GUARDRAILS #2). Deletion cascades ride on FK constraints, which is what the guest purge (ADR 0009) will lean on.
+
 ```mermaid
 erDiagram
-  users ||--o{ documents : owns
-  users ||--o{ threads : owns
+  user ||--o{ documents : owns
+  user ||--o{ threads : owns
   documents ||--o{ document_versions : has
   document_versions ||--o{ chunks : contains
   chunks ||--o{ citations : cited-by
   threads ||--o{ messages : contains
   messages ||--o{ citations : carries
-  users ||--o{ api_usage : accrues
-  users ||--o{ audit_events : triggers
+  user ||--o{ api_usage : accrues
+  user ||--o{ audit_events : triggers
 
   documents {
     uuid id PK
