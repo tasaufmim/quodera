@@ -139,7 +139,7 @@ WITH CHECK (user_id = current_setting('app.user_id', true)::uuid)
 | guest (one click, no PII, no signup) | capped workspace: 2 docs (≤10 pages, ≤5 MB each), chat 5 msgs/day, citations | cloud sync, BYO persistence, caps above guest tier |
 | registered                           | full workspace, sync toggle, BYO key                                         | —                                                  |
 
-Transitions: **"Try as guest"** mints a ghost `users` row (`isAnonymous`) plus a standard session — creation is IP-capped (3/day per IP). Registering links the **same `user_id`**, so trial documents and threads carry over. Guest sessions expire after 24h; guest data is purged ≤48h by a daily Vercel cron (`/api/cron/purge-guests`, `CRON_SECRET`-guarded, admin connection) with a lazy sweep on guest creation as backstop.
+Transitions: **"Try as guest"** mints a ghost `users` row (`isAnonymous`) plus a standard session — creation is IP-capped (3/day per IP), and guest sessions carry a hard 24h TTL (create-time clamp; the refresh window is never reached first). Registering creates the registered user and retires the ghost — the `onLinkAccount` hook receives both and is where trial data is carried over (ADR 0009 postscript). Guest data is purged ≤48h by a daily Vercel cron (`/api/cron/purge-guests`, `CRON_SECRET`-guarded, admin connection) with a lazy sweep on guest creation as backstop.
 
 Enforcement is server-side in every handler (a three-state session check), never UI-only. Guests get no special tenancy treatment — `withUser()` and RLS behave identically for them.
 

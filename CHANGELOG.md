@@ -5,6 +5,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); ver
 
 ## [Unreleased]
 
+### Added — Phase 2.3: guest mode (ADR 0009)
+
+- **One-click guest sessions** via better-auth's `anonymous` plugin — ghost `users` rows with placeholder emails (no PII), enabled only after the Phase 2.2 IP cap (3/day per IP) was already guarding `/sign-in/anonymous`; no unguarded guest endpoint ever existed.
+- **Hard 24h session TTL** enforced by a create-time clamp in `databaseHooks.session.create.before` — guest expiry lands before the refresh window, so guest sessions cannot be refreshed into longevity.
+- **Purge pipeline**: `purgeExpiredGuests()` on the admin connection + daily Vercel cron (`vercel.json` → `/api/cron/purge-guests`, 03:00 UTC) + a 10% lazy sweep on guest creation as backstop. The cron route fails CLOSED without `CRON_SECRET` (timing-safe compare).
+- **Upgrade carry-over contract pinned**: registering a guest creates the registered user and retires the ghost; `onLinkAccount` receives both ids — the sanctioned point where Phase 2.4 will copy tenant data. (ADR 0009 postscript documents why the in-place assumption was wrong.)
+- **Test discipline fix**: DB-backed suites now run with `fileParallelism: false` — parallel files were racing each other's fixture truncates on the shared Postgres (LEARNINGS).
+
 ### Added — Phase 2.2: global quotas
 
 - **Upstash driver** behind the existing limiter contract (`@upstash/ratelimit` sliding window): a driver swap with zero HTTP change — proven by the unchanged 429 contract tests and e2e. `getLimiter()` resolves Upstash-when-configured / memory-fallback, and a production deployment without Upstash logs ONE loud error instead of silently degrading to per-instance limits.

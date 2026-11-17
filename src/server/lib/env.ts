@@ -36,6 +36,7 @@ const envSchema = z.object({
   GITHUB_CLIENT_SECRET: optionalString,
   UPSTASH_REDIS_REST_URL: optionalString,
   UPSTASH_REDIS_REST_TOKEN: optionalString,
+  CRON_SECRET: optionalString,
 });
 
 export type Env = z.infer<typeof envSchema>;

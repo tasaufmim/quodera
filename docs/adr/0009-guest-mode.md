@@ -33,3 +33,21 @@ The product needs a zero-friction trial: reviewers and first-time users should e
 | Auto-provisioned guest on visit | bots mint ghost rows, burn the IP cap, and consent for storing uploads is implicit                                             |
 | Local-only in-browser trial     | contradicts ADR 0002 (server-side RAG)                                                                                         |
 | No trial (signup only)          | kills the CV-demo conversion the project exists for                                                                            |
+
+## Postscript (2026-11-17, from the first real run)
+
+Decision 5 assumed registering **links the same `user_id`** in place. better-auth's
+anonymous plugin works the other way for email sign-ups: it creates the NEW
+registered user and **deletes the ghost**, handing both users to
+`onLinkAccount`. The integration test caught this before any tenant data
+existed to lose. Resolution — now the design:
+
+- `onLinkAccount` is **the data-carry-over point**: from Phase 2.4 onward it
+  copies tenant rows (documents, threads, citations) ghost → registered
+  inside the hook, before the plugin deletes the ghost row.
+- "Trial data carries over" remains true; the mechanism is an explicit copy,
+  not an in-place rename. The upgrade test pins the pair delivered to the
+  hook (`ghost id`, `registered id`), so the future copy step has a
+  load-bearing contract to live inside.
+- Lurking ghost rows after upgrade are impossible: deletion is the plugin's
+  default and ours.
