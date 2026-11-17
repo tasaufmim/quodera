@@ -7,7 +7,7 @@ import { NextResponse, type NextRequest } from "next/server";
  * anything that uses Node APIs (pino, AsyncLocalStorage, postgres). That is
  * why request IDs are minted in withApi (Node) instead of here, and why the
  * future edge rate-limiter must be fetch-based (Upstash) — ARCHITECTURE.md
- * §runtimes.
+ * §runtimes (§9).
  */
 const SECURITY_HEADERS: Record<string, string> = {
   "x-content-type-options": "nosniff",
