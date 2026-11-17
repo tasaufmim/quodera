@@ -9,6 +9,13 @@ updates:
       prefix: "chore(deps)"
     # Security fixes land immediately; everything else batches weekly.
     open-pull-requests-limit: 5
+    ignore:
+      # npm majors are deliberate, ADR-backed upgrades — never automatic:
+      #   typescript 6 newly checks side-effect imports (needs css ambient
+      #   declarations); eslint-config-next 16 is native flat config (needs
+      #   the FlatCompat shim removed); next 16 changes ADR 0001's pinned
+      #   framework. Green CI on a major is not compatibility evidence.
+      - update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: "/"

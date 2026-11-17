@@ -6,6 +6,14 @@ Format: `### YYYY-MM-DD — topic` + a short story.
 
 ---
 
+### 2026-11-17 — gitleaks-action derives invalid commit ranges after history merges
+
+**What:** the first push of the merged history (local phase-1 commit + GitHub's "Initial commit") failed the secret-scan job with `ERROR: Unexpected exit code [1]` — no leak found, the scanner itself died.
+
+**Why:** `gitleaks/gitleaks-action` builds a `before^..after` commit range from the push event. Our phase-1 commit is a **root** on the first-parent chain of the merge, so `537f606^` resolves to nothing — git rejects the range (`fatal: ambiguous argument`), gitleaks exits nonzero, the job goes red. Scanned bytes: ~0.
+
+**Now:** the job runs gitleaks directly from a pinned image (`zricethezav/gitleaks:v8.24.3`) over the **full history** on every run — no range derivation, identical behavior for push and pull_request events, fails closed. (Also the moment we realized dependabot PR scans only cover the PR's commits — full-history scanning was overdue anyway.)
+
 ### 2026-11-17 — SET LOCAL on a custom GUC can leave `''` behind on pooled connections
 
 **What:** the default-deny test threw `invalid input syntax for type uuid: ""` — the policy's `current_setting('app.user_id', true)` returned an **empty string**, not NULL, on a pooled session after an earlier `withUser` transaction.
