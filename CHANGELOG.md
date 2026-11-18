@@ -5,8 +5,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); ver
 
 ## [Unreleased]
 
-### Added — Phase 3.0: ingest decisions (pre-build)
+### Added — Phase 3.1/3.2: parsers with exact provenance + the chunks table
 
+- **Digital-PDF parser** (pdfjs-dist, Node — ADR 0005 amendment): text items grouped by baseline into lines, lines into paragraphs by vertical-gap analysis, oversized lines become sections. Page/line provenance is asserted **exactly** against generated fixtures — a regression of one line number fails the suite.
+- **DOCX parser**: a ~60-line zip+XML walker (fflate) — heading styles become sections, entities decoded, no invented fields (DOCX has no pages, per ADR 0006). **TXT/MD**: blank-line paragraphs, MD headings as sections, exact file line numbers.
+- **Honest failures**: a textless page (scanned insert) marks the whole document `no-text-layer` — all-or-nothing, because a citation we cannot see is a lie. Images answer `ocr-not-available` until Phase 5.
+- **Paragraph-level chunker**: one chunk = one paragraph (the citation identity); oversize paragraphs split at sentence boundaries with **exact line tiling** (pieces tile the paragraph's lines with no gaps — tested); tiny neighbors merge up to 800 chars but never across page or section boundaries; a single-line piece truthfully shares its one line.
+- **`chunks` table**: 768-dim pgvector column (ADR 0004 postscript), provenance columns (`page`, `section`, `paragraph_no`, `line_start`, `line_end`), HNSW + generated tsvector/GIN via hardening SQL, full canary pattern, registered in the reusable tenancy suite (35 new adversarial assertions incl. forged-insert cases that are FK-valid).
+
+### Added — Phase 3.0: ingest decisions (pre-build)
 - **ADR 0004 postscript** — the embedding choice was re-litigated before implementation: OpenRouter embeddings were seriously considered (one provider, ~$0.01/M tokens) and rejected because paid-per-token breaks the $0-forever demo guarantee. Confirmed: `gemini-embedding-001` @ 768 dims (Matryoshka), batched, **one model for everyone** — BYO keys stay chat-only, so there are never two vector dimensions in one table. Rate caps get measured empirically with the real key, not trusted from docs.
 - **ADR 0005 amendment** — parsing runs IN NODE (`pdfjs-dist` coordinates, a DOCX zip+XML walker), not in the Python worker. The worker's mandate narrows to layout-aware OCR (Phase 5); no parser ever exists twice.
 - **SECURITY §10 (Privacy notes)** — the free-tier data-terms trade-off for embeddings is stated out loud, with upgrade paths; guest ephemerality and local-first chat history documented as policy, not implication.

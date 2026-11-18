@@ -125,6 +125,43 @@ export const documentKind = pgEnum("document_kind", [
 
 export const messageRole = pgEnum("message_role", ["user", "assistant"]);
 
+/**
+ * Chunks (Phase 3.2): the retrieval unit AND the citation unit — one chunk is
+ * one paragraph (or a merge/split per chunk.ts rules), carrying the
+ * provenance minted at parse time. `paragraph_no` points at the chunk's FIRST
+ * paragraph; the content itself is the citation span (ADR 0006).
+ *
+ * Embeddings: gemini-embedding-001 @ 768 dims (ADR 0004 postscript) — the
+ * dimension is permanent; changing the model means a scripted re-embedding
+ * migration. tsvector + HNSW land via migrations/hardening (drizzle cannot
+ * express them).
+ */
+export const chunks = pgTable(
+  "chunks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    versionId: uuid("version_id")
+      .notNull()
+      .references(() => documentVersions.id, { onDelete: "cascade" }),
+    page: integer("page"),
+    section: text("section"),
+    paragraphNo: integer("paragraph_no").notNull(),
+    lineStart: integer("line_start"),
+    lineEnd: integer("line_end"),
+    content: text("content").notNull(),
+    embedding: vector("embedding", { dimensions: 768 }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("chunks_user_id_idx").on(table.userId),
+    index("chunks_version_id_idx").on(table.versionId),
+    index("chunks_version_paragraph_idx").on(table.versionId, table.paragraphNo),
+  ],
+);
+
 export const documents = pgTable(
   "documents",
   {

@@ -4,7 +4,15 @@ import { eq } from "drizzle-orm";
 import { carryOverTenantData, TENANT_TABLES } from "@/server/auth/carry-over";
 import { getDb } from "./index";
 import { withUser, type Tx } from "./rls";
-import { apiUsage, auditEvents, documentVersions, documents, messages, threads } from "./schema";
+import {
+  apiUsage,
+  auditEvents,
+  chunks,
+  documentVersions,
+  documents,
+  messages,
+  threads,
+} from "./schema";
 
 /**
  * The canary pattern as a REUSABLE suite (ADR 0008): every tenant table
@@ -143,6 +151,45 @@ const TABLES: Array<{ label: string; ops: TenancyOps<unknown> }> = [
           .returning({ id: apiUsage.id }),
       crossDelete: (tx, owner) =>
         tx.delete(apiUsage).where(eq(apiUsage.userId, owner)).returning({ id: apiUsage.id }),
+    },
+  },
+  {
+    label: "chunks",
+    ops: {
+      seed: async (tx, userId) => {
+        const [doc] = await tx
+          .insert(documents)
+          .values({ userId, name: `chunk-doc-${userId}`, kind: "digital_pdf" })
+          .returning({ id: documents.id });
+        const [version] = await tx
+          .insert(documentVersions)
+          .values({ userId, documentId: doc!.id, versionNo: 1 })
+          .returning({ id: documentVersions.id });
+        await tx.insert(chunks).values({
+          userId,
+          versionId: version!.id,
+          paragraphNo: 1,
+          page: 1,
+          content: "seed chunk content",
+        });
+        return version!.id;
+      },
+      selectAll: (tx) => tx.select({ userId: chunks.userId }).from(chunks),
+      forged: (tx, parentVersionId) =>
+        tx.insert(chunks).values({
+          userId: UUID_A,
+          versionId: parentVersionId as string,
+          paragraphNo: 2,
+          content: "forged chunk",
+        }),
+      crossUpdate: (tx, owner) =>
+        tx
+          .update(chunks)
+          .set({ content: "pwned" })
+          .where(eq(chunks.userId, owner))
+          .returning({ id: chunks.id }),
+      crossDelete: (tx, owner) =>
+        tx.delete(chunks).where(eq(chunks.userId, owner)).returning({ id: chunks.id }),
     },
   },
 ];
