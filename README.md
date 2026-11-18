@@ -33,15 +33,15 @@ Quodera is a **citation-grounded RAG platform**. Upload lecture sheets, legal co
 
 Portfolio-grade build, in progress. Phase 1 (foundation) is complete and deployed.
 
-| Phase | Scope                                                                                                                    | Status                       |
-| ----- | ------------------------------------------------------------------------------------------------------------------------ | ---------------------------- |
-| 1     | Foundation: scaffold, governance docs, CI/CD, RLS tenancy canary, observability, rate-limit contract                     | ✅ done                      |
-| 2     | Auth (better-auth: OAuth + magic links), one-click guest trial (ADR 0009), real schema, Upstash quotas, hardened uploads | 🔨 2.1–2.6 merged · 2.7 next |
-| 3     | Ingest: parsing, structure-aware chunking with provenance, Gemini embeddings, pgvector indexing                          | ⬜                           |
-| 4     | Retrieval & chat: hybrid BM25+vector, rerank, cited generation, SSE streaming, BYO-key LLM proxy                         | ⬜                           |
-| 5     | OCR worker (layout-aware, line boxes), scanned PDFs & images, tables                                                     | ⬜                           |
-| 6     | Evals (golden set, citation precision) in CI, security hardening, audit log                                              | ⬜                           |
-| 7     | Ship: demo assets, landing page, CV                                                                                      | ⬜                           |
+| Phase | Scope                                                                                                                    | Status  |
+| ----- | ------------------------------------------------------------------------------------------------------------------------ | ------- |
+| 1     | Foundation: scaffold, governance docs, CI/CD, RLS tenancy canary, observability, rate-limit contract                     | ✅ done |
+| 2     | Auth (better-auth: OAuth + magic links), one-click guest trial (ADR 0009), real schema, Upstash quotas, hardened uploads | ✅ done |
+| 3     | Ingest: parsing, structure-aware chunking with provenance, Gemini embeddings, pgvector indexing                          | ⬜      |
+| 4     | Retrieval & chat: hybrid BM25+vector, rerank, cited generation, SSE streaming, BYO-key LLM proxy                         | ⬜      |
+| 5     | OCR worker (layout-aware, line boxes), scanned PDFs & images, tables                                                     | ⬜      |
+| 6     | Evals (golden set, citation precision) in CI, security hardening, audit log                                              | ⬜      |
+| 7     | Ship: demo assets, landing page, CV                                                                                      | ⬜      |
 
 ## Architecture (one diagram)
 

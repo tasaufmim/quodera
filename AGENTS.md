@@ -47,9 +47,9 @@ full invariants and is enforced in PR review.
 | e2e (builds nothing itself; run `pnpm build` first) | `pnpm build && pnpm test:e2e`                                             |
 | new migration from schema                           | `pnpm db:generate` (then write hardening SQL if the table is tenant data) |
 | apply migrations                                    | `pnpm db:migrate`                                                         |
-| **definition of done**                              | `pnpm verify:phase1`                                                      |
+| **definition of done**                              | `pnpm verify:phase2`                                                      |
 
-Always finish with `pnpm verify:phase1` before claiming a task is complete.
+Always finish with `pnpm verify:phase2` before claiming a task is complete.
 
 ## Repo map
 

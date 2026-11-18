@@ -5,6 +5,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); ver
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-11-18
+
+### Added — Phase 2.7: the verification gate
+
+- `pnpm verify:phase2` — Phase 2's definition of done as code: the full Phase 1 gate (typecheck · lint · unit · tenancy · build, optional HTTP smoke) PLUS the e2e suite, including the guest journey (one click → workspace → upload → document listed) against the production build.
+
 ### Added — Phase 2.6: three-state gating + the human surface
 
 - **Sign-in page** (`/sign-in`): one passwordless door — OAuth buttons (rendered only for providers with configured credentials), magic-link form (with a local-dev hint about the console link), and the one-click guest entry.
@@ -80,5 +86,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); ver
 - **Governance docs:** README, ARCHITECTURE (pipeline, citation schema, tenancy, failure modes), SECURITY (threat model + debt register), AGENTS, CODING_GUIDELINES, GUARDRAILS, PROVISIONING runbook, LEARNINGS journal, ADRs 0001–0008.
 - **Verification gate:** `pnpm verify:phase1` (+ `SMOKE=1` HTTP probes).
 
-[Unreleased]: https://github.com/tasaufmim/quodera/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/tasaufmim/quodera/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/tasaufmim/quodera/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/tasaufmim/quodera/releases/tag/v0.1.0

@@ -26,6 +26,7 @@
     "db:up": "docker compose up -d db",
     "db:down": "docker compose down",
     "verify:phase1": "bash scripts/verify-phase1.sh",
+    "verify:phase2": "bash scripts/verify-phase2.sh",
     "prepare": "lefthook install"
   },
   "dependencies": {
