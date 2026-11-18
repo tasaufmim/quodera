@@ -14,7 +14,9 @@ full invariants and is enforced in PR review.
 2. **All tenant data access goes through `withUser()`** (`src/server/db/rls.ts`).
    Raw `getDb()` queries against tenant tables are default-deny by RLS — treat
    "0 rows returned" outside `withUser` as a bug in the caller, not a database
-   problem to work around.
+   problem to work around. The sanctioned exceptions are the system
+   connections (admin: migrations/fixtures; system role: the upgrade
+   carry-over — ADR 0010). Never add a third exception without an ADR.
 3. **Every route handler is wrapped in `withApi()`** (`src/server/lib/api-handler.ts`).
    It provides request ids, structured logging, and error capture. If you write
    `export const GET = async () => {...}` directly, you skipped the contract.

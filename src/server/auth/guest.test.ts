@@ -1,5 +1,6 @@
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { eq } from "drizzle-orm";
 import { GET as purgeRoute } from "@/app/api/cron/purge-guests/route";
 import { createAuth } from "./index";
 import { purgeExpiredGuests, GUEST_EMAIL_DOMAIN } from "./purge";
@@ -205,6 +206,73 @@ const d = describe.skipIf(!runtimeUrl)("guest mode (ADR 0009)", () => {
     const body = (await ok.json()) as { purgedGuests: number };
     expect(body.purgedGuests).toBeGreaterThanOrEqual(0);
   });
+
+  it.skipIf(!process.env.DATABASE_SYSTEM_URL)(
+    "carries guest tenant rows to the registered user through the real upgrade path",
+    async () => {
+      // NOTE: no onLinkAccount override — this exercises the PRODUCTION
+      // carry-over (ADR 0009 postscript + ADR 0010), not a test stub.
+      const capturedLinks: string[] = [];
+      const auth = createAuth({
+        sendMagicLink: async ({ url }) => {
+          capturedLinks.push(url);
+        },
+      });
+      const email = `frank-${crypto.randomUUID()}@example.test`;
+
+      // 1. guest session + tenant data owned by the ghost
+      const guestResponse = await auth.handler(guestRequest("10.1.0.4"));
+      const ghostId = ((await guestResponse.json()) as { user: { id: string } }).user.id;
+      const cookie = guestResponse.headers
+        .getSetCookie()
+        .map((entry) => entry.split(";")[0]!)
+        .join("; ");
+
+      const { withUser } = await import("../db/rls");
+      const { documents } = await import("../db/schema");
+      const seededDocId = await withUser(ghostId, async (tx) => {
+        const [doc] = await tx
+          .insert(documents)
+          .values({ userId: ghostId, name: "trial-doc", kind: "digital_pdf" })
+          .returning({ id: documents.id });
+        return doc!.id;
+      });
+
+      // 2. upgrade via magic link — the real hook fires carryOverTenantData
+      const send = await auth.handler(
+        new Request(`${ORIGIN}/api/auth/sign-in/magic-link`, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            origin: ORIGIN,
+            "x-forwarded-for": "10.1.0.4",
+            cookie,
+          },
+          body: JSON.stringify({ email, callbackURL: "/dashboard" }),
+        }),
+      );
+      expect(send.status).toBe(200);
+
+      const verified = await auth.handler(
+        new Request(capturedLinks[0]!, { headers: { origin: ORIGIN, cookie } }),
+      );
+      expect([200, 302]).toContain(verified.status);
+
+      // 3. the ghost is gone (plugin) — and the trial document belongs to the
+      //    registered user, id preserved
+      const [registered] = await cleanup`select id from "user" where email = ${email}`;
+      expect(registered).toBeTruthy();
+
+      const rows = await withUser(registered!.id, (tx) =>
+        tx
+          .select({ id: documents.id, userId: documents.userId })
+          .from(documents)
+          .where(eq(documents.id, seededDocId)),
+      );
+      expect(rows).toHaveLength(1);
+      expect(rows[0]!.userId).toBe(registered!.id);
+    },
+  );
 });
 
 export { d as guestModeSuite };

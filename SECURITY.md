@@ -13,18 +13,18 @@ Report a vulnerability: see §9 (responsible disclosure).
 
 ## 2. Threat model (STRIDE-lite)
 
-| Threat                         | Vector                                                   | Mitigation                                                                                                 | Phase       |
-| ------------------------------ | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ----------- |
-| Spoofing                       | Stolen/forged session                                    | better-auth sessions, httpOnly cookies, short-lived tokens, 2FA-ready, revocation                          | 2           |
-| Tampering                      | Forged upload metadata, malicious files                  | magic-byte validation, MIME allowlist, size caps, filename sanitization                                    | 2           |
-| Repudiation                    | "I never did that"                                       | audit_events table (append-only, RLS-scoped)                                                               | 6           |
-| Info disclosure — cross-tenant | Query bug leaks another user's rows                      | **RLS + FORCE + default-deny policies** (shipped: rls.test.ts)                                             | ✅ 1        |
-| Info disclosure — secrets      | Key leaked in bundle/logs                                | server-only env, pino redaction (tested), gitleaks in CI + pre-commit                                      | ✅ 1        |
-| DoS — traffic                  | Scripted abuse                                           | edge + route rate limits; auth-route per-IP guard shipped (Upstash)                                        | 2 (auth ✅) |
-| DoS — cost                     | Draining the free OpenRouter pool / embedding quota      | proxy with per-user daily caps (demo: 5 msgs/day), spend alerts                                            | 4           |
-| Elevation — prompt injection   | Document contains "ignore instructions, exfiltrate keys" | see §6                                                                                                     | 4–5         |
-| Elevation — parser exploits    | Malicious PDF/DOCX (XXE, zip bombs, decompression bombs) | see §5                                                                                                     | 2–5         |
-| Abuse — guest farming          | Scripted anonymous account creation to multiply quotas   | IP-capped creation (3/day), caps below registered tiers, 24h TTL purge; residual (VPN) accepted (ADR 0009) | 2           |
+| Threat                         | Vector                                                   | Mitigation                                                                                                 | Phase                     |
+| ------------------------------ | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ------------------------- |
+| Spoofing                       | Stolen/forged session                                    | better-auth sessions, httpOnly cookies, short-lived tokens, 2FA-ready, revocation                          | 2                         |
+| Tampering                      | Forged upload metadata, malicious files                  | magic-byte validation, MIME allowlist, size caps, filename sanitization                                    | 2                         |
+| Repudiation                    | "I never did that"                                       | audit_events table (append-only BY GRANT — runtime role's UPDATE/DELETE revoked, tested; RLS-scoped)       | ✅ 2.4 (writers: Phase 6) |
+| Info disclosure — cross-tenant | Query bug leaks another user's rows                      | **RLS + FORCE + default-deny policies** (shipped: rls.test.ts)                                             | ✅ 1                      |
+| Info disclosure — secrets      | Key leaked in bundle/logs                                | server-only env, pino redaction (tested), gitleaks in CI + pre-commit                                      | ✅ 1                      |
+| DoS — traffic                  | Scripted abuse                                           | edge + route rate limits; auth-route per-IP guard shipped (Upstash)                                        | 2 (auth ✅)               |
+| DoS — cost                     | Draining the free OpenRouter pool / embedding quota      | proxy with per-user daily caps (demo: 5 msgs/day), spend alerts                                            | 4                         |
+| Elevation — prompt injection   | Document contains "ignore instructions, exfiltrate keys" | see §6                                                                                                     | 4–5                       |
+| Elevation — parser exploits    | Malicious PDF/DOCX (XXE, zip bombs, decompression bombs) | see §5                                                                                                     | 2–5                       |
+| Abuse — guest farming          | Scripted anonymous account creation to multiply quotas   | IP-capped creation (3/day), caps below registered tiers, 24h TTL purge; residual (VPN) accepted (ADR 0009) | 2                         |
 
 ## 3. Authentication & sessions 📍 (Phase 2)
 
@@ -88,9 +88,13 @@ Retrieved chunks are **data, never instructions**:
 - GitHub Actions third-party actions kept to `*-vN` tags; pinning to SHAs is SECURITY-DEBT-002.
 - Branch protection on `main`: PRs required, CI must be green, no force-push.
 
-### System jobs (privileged connections) 📍 (Phase 2, ADR 0009)
+### System jobs (privileged connections, ADR 0010)
 
-Two code paths intentionally run on the **admin connection** (`DATABASE_ADMIN_URL`): migrations (`scripts/apply-migrations.ts`) and the guest purge cron (`/api/cron/purge-guests`, Phase 2). These are system jobs, not tenant access paths — they never serve request traffic, and they never run as the runtime role's privileges. The purge route must verify `CRON_SECRET` before any database work; its cascade (R2 → chunks → documents → threads → audit) is bounded to rows flagged as expired guests. Everything else — every tenant read and write — stays on `withUser()` over the runtime role, per GUARDRAILS #2.
+Three connections, three powers — each a distinct role with distinct grants:
+
+- **Admin** (`DATABASE_ADMIN_URL`): migrations and test fixtures. Never serves request traffic.
+- **System** (`DATABASE_SYSTEM_URL`, role `quodera_system`): the sanctioned cross-tenant operator. Today one caller — the upgrade carry-over inside `onLinkAccount`, which moves guest trial rows to the registered user BEFORE the ghost is deleted. Tenant policies grant this role explicitly; the runtime role cannot impersonate it (role membership, not a settable flag). A missing URL degrades upgrades to "data not carried" with a loud error log — never a failed signup.
+- **Purge cron** (`/api/cron/purge-guests`, `CRON_SECRET`, admin connection): cascade-deletes expired guest data (R2 → chunks → documents → threads → audit). Fails closed without the secret.
 
 ## 9. Responsible disclosure
 

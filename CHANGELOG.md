@@ -5,6 +5,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); ver
 
 ## [Unreleased]
 
+### Added — Phase 2.4: domain schema (tenant tables + system role)
+
+- **Six tenant tables** with the full canary pattern (ADR 0008): `documents`, `document_versions`, `threads`, `messages`, `api_usage`, `audit_events` — RLS + FORCE + policies, FK cascades to `user` (guest purge rides them), denormalized `user_id` on every table so policies stay single-comparison and carry-over stays uniform.
+- **The canary pattern became a reusable suite**: every tenant table registers five adversarial cases in one place (`tenancy.test.ts`) — 35 new tenancy assertions across six tables, including forged-insert cases that are FK-valid so ONLY the policy can reject them.
+- **audit_events is append-only by grant, not convention**: the runtime role's UPDATE/DELETE are revoked at the database level; tests walk drizzle's error cause-chain to assert the actual `permission denied`.
+- **ADR 0010 — the system role** (`quodera_system`, `DATABASE_SYSTEM_URL`): the sanctioned cross-tenant operator. Pre-empts a production-only bug: carry-over on the admin connection would pass locally/CI (superuser bypass) and fail on Neon (owner + FORCE RLS). Role membership is the one credential sessions cannot fake.
+- **Upgrade carry-over is live**: registering a guest moves every tenant row to the registered user (ids preserved) before the ghost is deleted — proven end-to-end through the real `onLinkAccount` hook, not a stub.
+- New env: `DATABASE_SYSTEM_URL` / `APP_SYSTEM_DB_PASSWORD` (documented in `.env.example`, wired in CI).
+
 ### Added — Phase 2.3: guest mode (ADR 0009)
 
 - **One-click guest sessions** via better-auth's `anonymous` plugin — ghost `users` rows with placeholder emails (no PII), enabled only after the Phase 2.2 IP cap (3/day per IP) was already guarding `/sign-in/anonymous`; no unguarded guest endpoint ever existed.
