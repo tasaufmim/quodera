@@ -5,6 +5,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); ver
 
 ## [Unreleased]
 
+### Added — Phase 2.6: three-state gating + the human surface
+
+- **Sign-in page** (`/sign-in`): one passwordless door — OAuth buttons (rendered only for providers with configured credentials), magic-link form (with a local-dev hint about the console link), and the one-click guest entry.
+- **"Try as guest"** on the landing page and sign-in page — the explicit consent click from ADR 0009, wired to the already-IP-capped `/sign-in/anonymous` route.
+- **The real dashboard**: session-gated (anonymous → redirect to `/sign-in`), server-rendered from RLS-scoped `withUser()` queries — documents list + upload surface with honest error copy for every machine-readable rejection code (413/415/403/429).
+- **App shell**: identity in the header (guest or email), sign-out, and the guest banner — "Temporary guest workspace, deleted within 48 hours — sign up to keep your documents →".
+- **Isomorphic boundaries honored**: guest caps live once in `src/lib/guest-caps.ts` (server limits build from the same constants the UI displays); the better-auth client lives in `src/lib/auth-client.ts`; client components never import `@/server`.
+- Session lookup deduped per request via React `cache()` (layout + page share one DB answer).
+- **e2e: the full guest journey** — landing → one click → banner → upload a real PDF → the document appears in the list, over the production build.
+
 ### Added — Phase 2.5: hardened uploads + storage drivers
 
 - **`POST /api/documents`** with the full SECURITY §5 sequence: session tier → per-user rate guard → content-length gate → multipart parse → validation pipeline → guest count cap → storage put → tenant rows via `withUser()`. Plus **`GET /api/documents`** (RLS-scoped list).

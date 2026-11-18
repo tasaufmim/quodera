@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { GuestButton } from "@/components/auth/GuestButton";
+import { GUEST_CAPS } from "@/lib/guest-caps";
 
 const PIPELINE = [
   {
@@ -44,10 +46,10 @@ export default function LandingPage() {
         </p>
         <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
           <Link
-            href="/dashboard"
+            href="/sign-in"
             className="rounded-lg bg-primary px-5 py-3 font-medium text-primary-ink transition hover:opacity-90"
           >
-            Open the app
+            Start free
           </Link>
           <Link
             href="/api/health"
@@ -57,7 +59,7 @@ export default function LandingPage() {
           </Link>
         </div>
         <p className="mt-8 font-mono text-xs text-ink-muted">
-          phase 1 · foundation — auth, ingest &amp; retrieval arrive in phases 2–4
+          phase 2 · identity + uploads live — retrieval arrives in phase 4
         </p>
       </section>
 
@@ -71,6 +73,14 @@ export default function LandingPage() {
             </div>
           ))}
         </div>
+      </section>
+      <section className="mx-auto max-w-5xl border-t border-line px-6 py-14 text-center">
+        <h2 className="text-xl font-semibold tracking-tight">Try it in one click</h2>
+        <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-ink-muted">
+          A guest workspace with a {GUEST_CAPS.documents}-document limit — no signup, no email. Sign
+          up later and everything carries over.
+        </p>
+        <GuestButton className="mx-auto mt-6 max-w-xs" />
       </section>
     </main>
   );

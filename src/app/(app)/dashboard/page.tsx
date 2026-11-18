@@ -1,48 +1,73 @@
-const PLACEHOLDER_STATS = [
-  { label: "Documents", value: "0" },
-  { label: "Threads", value: "0" },
-  { label: "Citations", value: "0" },
-] as const;
+import { redirect } from "next/navigation";
+import { headers } from "next/headers";
+import { desc } from "drizzle-orm";
+import { UploadDropzone } from "@/components/documents/UploadDropzone";
+import { getSessionUserFromHeaders } from "@/server/auth/session";
+import { withUser } from "@/server/db/rls";
+import { documents } from "@/server/db/schema";
 
-const PHASE_2_PREVIEW = [
-  "better-auth: Google + GitHub OAuth and email magic links",
-  "Real schema — documents, chunks, threads, messages — every table RLS-guarded like tenancy_canary",
-  "Per-route rate-limit policy matrix on Upstash Redis",
-  "Hardened uploads: magic-byte validation, size caps, decompression-bomb guards",
-] as const;
+export const metadata = { title: "Dashboard" };
 
-export default function DashboardPage() {
+/**
+ * The real dashboard (Phase 2.6): server-rendered from RLS-scoped queries —
+ * no HTTP roundtrip to our own API, because the session and `withUser` are
+ * right here. Anonymous visitors are redirected; guests and registered
+ * users share the same surface with different caps.
+ */
+export default async function DashboardPage() {
+  const user = await getSessionUserFromHeaders(await headers());
+  if (!user) {
+    redirect("/sign-in");
+  }
+
+  const rows = await withUser(user.id, (tx) =>
+    tx
+      .select({
+        id: documents.id,
+        name: documents.name,
+        kind: documents.kind,
+        status: documents.status,
+        createdAt: documents.createdAt,
+      })
+      .from(documents)
+      .orderBy(desc(documents.createdAt))
+      .limit(100),
+  );
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Documents</h1>
         <p className="mt-1 text-sm text-ink-muted">
-          Placeholder — your document library and chat threads land here in Phase 2+.
+          {user.isAnonymous
+            ? "Your guest workspace. Upload up to the guest limit — parsing and chat arrive in later phases."
+            : "Your library. Parsing and chat arrive in later phases."}
         </p>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        {PLACEHOLDER_STATS.map((stat) => (
-          <div key={stat.label} className="rounded-xl border border-line bg-surface p-6">
-            <p className="font-mono text-3xl font-semibold">{stat.value}</p>
-            <p className="mt-1 text-sm text-ink-muted">{stat.label}</p>
-          </div>
-        ))}
-      </div>
+      <UploadDropzone isGuest={user.isAnonymous} />
 
-      <div className="rounded-xl border border-line bg-surface p-6">
-        <h2 className="font-medium">Phase 2 preview</h2>
-        <ul className="mt-3 space-y-2">
-          {PHASE_2_PREVIEW.map((item) => (
-            <li key={item} className="flex gap-3 text-sm leading-relaxed text-ink-muted">
-              <span aria-hidden className="font-mono text-primary">
-                ›
+      {rows.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-line p-10 text-center text-sm text-ink-muted">
+          Nothing here yet — add a PDF, a lecture sheet, or a contract to begin.
+        </div>
+      ) : (
+        <ul className="divide-y divide-line rounded-xl border border-line bg-surface">
+          {rows.map((doc) => (
+            <li key={doc.id} className="flex items-center justify-between px-6 py-4">
+              <div className="min-w-0">
+                <p className="truncate font-medium">{doc.name}</p>
+                <p className="mt-0.5 font-mono text-xs text-ink-muted">
+                  {doc.kind} · {doc.status} · {doc.createdAt.toISOString().slice(0, 10)}
+                </p>
+              </div>
+              <span className="rounded-full border border-line px-2.5 py-0.5 font-mono text-xs text-ink-muted">
+                {doc.status}
               </span>
-              {item}
             </li>
           ))}
         </ul>
-      </div>
+      )}
     </div>
   );
 }

@@ -75,11 +75,12 @@ Always finish with `pnpm verify:phase1` before claiming a task is complete.
 
 ## Phase context (where we are)
 
-Phase 1 (foundation) is complete: scaffold, CI/CD, RLS canary, observability,
-rate-limit contract. Next is Phase 2 — auth (better-auth: Google/GitHub OAuth,
-email magic links, and anonymous/guest ghost sessions per ADR 0009), real
-domain schema (every table copies the canary pattern: user_id, RLS with FORCE,
-and the five tenancy tests), Upstash global quotas incl. guest tiers, hardened
-uploads with guest caps, and three-state route gating (anonymous, guest,
-registered). Read docs/adr/0008 and docs/adr/0009 before touching auth,
-quotas, or any new table.
+Phase 1 (foundation) and Phase 2 sub-phases 2.1–2.6 are complete: better-auth
+(OAuth + magic links + guest ghost sessions per ADR 0009), the full tenant
+schema under the canary pattern (every table: RLS + FORCE + tenancy tests),
+Upstash quotas incl. guest tiers, hardened uploads with the storage driver
+pattern, and the three-state UI (sign-in page, guest banner, dashboard).
+Next is Phase 2.7 — the `verify:phase2` gate — then Phase 3 ingest: parsing,
+structure-aware chunking with provenance, Gemini embeddings, pgvector
+indexing. Read docs/adr/0008, 0009, and 0010 before touching auth, quotas,
+carry-over, or any new table; register new tenant tables in tenancy.test.ts.
