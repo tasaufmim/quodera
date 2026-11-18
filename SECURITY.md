@@ -100,6 +100,14 @@ Three connections, three powers — each a distinct role with distinct grants:
 
 Email **security@quodera.dev** (configure when the domain lands — PROVISIONING.md). Please allow 90 days for a fix before public disclosure. We will credit reporters in the CHANGELOG unless anonymity is requested.
 
+## 10. Privacy notes — what we say out loud
+
+Products that hold people's legal and academic documents owe explicit data-flow statements, not fine print:
+
+- **Chunk text transits Google (Gemini free tier) for embeddings** (ADR 0004 postscript). Google's free-tier terms permit using inputs to improve their products; the paid tier excludes this. We state that plainly because our alternative — hiding it — would be the one thing worse than the trade-off itself. Upgrade paths, in order of cost: pay for the Gemini tier (data not used for training), swap providers behind the `EmbeddingProvider` interface (a scripted re-embedding migration), or self-host embeddings. Raw files never leave our storage; only extracted chunk text is embedded.
+- **Guest workspaces are ephemeral by policy**: sessions 24h, all guest data deleted ≤48h (ADR 0009), enforced by a fail-closed cron + lazy sweep.
+- **Chat history is local-first by design** (ADR 0002): threads live in the user's IndexedDB by default; cloud sync is an explicit opt-in toggle (arrives with chat in Phase 4).
+
 ## Security debt register
 
 | ID                | Item                                                                                             | Introduced                              | Target            |

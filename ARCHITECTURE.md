@@ -40,7 +40,7 @@ flowchart LR
   PROXY --> EXT
 ```
 
-## 2. The answer pipeline 📍 (Phases 3–5)
+## 2. The answer pipeline (Phase 3 in progress; retrieval/chat 📍 Phase 4; OCR 📍 Phase 5)
 
 The core loop: upload → provenance-stamped chunks → hybrid retrieval → cited, verified answers.
 
@@ -48,24 +48,23 @@ The core loop: upload → provenance-stamped chunks → hybrid retrieval → cit
 sequenceDiagram
   participant U as User
   participant API as Quodera API
-  participant WKR as Python worker
   participant PG as Neon Postgres
   participant E as Gemini embeddings
   participant L as LLM (OpenRouter proxy)
 
   U->>API: upload document
   API->>API: validate (magic bytes, size, MIME allowlist)
-  API->>R2: store raw bytes (Phase 2)
-  API->>WKR: classify + parse job
-  alt text-layer PDF / docx / md
-    WKR->>WKR: extract text + positions (pdf.js coords / markitdown)
-  else scanned PDF / image
-    WKR->>WKR: layout-aware OCR → line & paragraph boxes
+  API->>API: store raw bytes (R2 / dev store) + document rows
+  Note over API: after() — async, post-response
+  API->>API: parse (Node: pdfjs-dist coords / DOCX walker / text split)
+  alt text layer present
+    API->>API: provenance tree (page/¶/line spans)
+    API->>API: paragraph-level chunking (spans carried)
+    API->>E: embed chunks (batchEmbedContents, 100/call)
+    API->>PG: atomic insert: all chunks + vectors + tsvector, else failed
+  else scanned / no text layer
+    API->>PG: status failed — OCR arrives with the Phase 5 worker
   end
-  WKR->>API: markdown + provenance tree (page/¶/line spans)
-  API->>API: structure-aware chunking (each chunk carries spans)
-  API->>E: embed chunks (batch)
-  API->>PG: store chunks + embeddings + tsvector
 
   U->>API: ask question
   API->>API: rewrite query w/ thread context
@@ -78,6 +77,7 @@ sequenceDiagram
 
 Key decisions baked into this pipeline:
 
+- **Parsing runs in Node, not a worker** (ADR 0005 amendment): text-layer PDF extraction via pdfjs-dist parses content streams — fast even for hundreds of pages — and DOCX is a zip with walkable XML. The Python worker's mandate narrows to layout-aware OCR for pixel formats, Phase 5. No parser ever exists twice.
 - **OCR is chosen for citation quality, not just text extraction.** docTR/PaddleOCR return line and paragraph bounding boxes — those boxes are _where page/paragraph/line citations come from_ (ADR 0005).
 - **Chunking happens with the provenance tree in hand.** A chunk is worthless to this product unless it carries `{page, paragraph, lineRange, span}` minted at ingest time — retrofitting citations after retrieval is how everyone else does it, and it's why their citations are vague.
 - **The model never sees whole documents or images.** Retrieval selects top-k chunk texts; that is the token-saving strategy (not "OCR to shrink tokens" — OCR is what makes images searchable at all).

@@ -25,3 +25,27 @@ Embeddings run **server-side via the Gemini embedding API free tier**, behind a 
 | OpenRouter embeddings for everyone | paid per token; the demo pool must be free forever                                                                                            |
 | Transformers.js in-browser         | pairs with in-browser RAG (ADR 0002 chose server-side); adds ~seconds of client compute per document and a second embedding stack to maintain |
 | BYO-key-only embeddings            | demo reviewers without keys get no retrieval — dead demo                                                                                      |
+
+## Postscript (2026-11-18 — re-litigated before implementation, confirmed)
+
+Before Phase 3 the decision was deliberately reopened. OpenRouter now serves
+embeddings (~$0.01/M tokens via `bge-m3`), which would collapse chat and
+embeddings into one provider. The cost math is genuinely small — roughly
+$0.04 per 1,000 guest documents — but paid-per-token breaks the **$0-forever
+demo guarantee**, which is the product story. Confirmed specifics:
+
+- Model: `gemini-embedding-001` at **768 dimensions** (Matryoshka truncation
+  from 3072 — negligible quality loss at our scale, 4× less storage in what
+  will be the largest table we ever have).
+- Batched via `batchEmbedContents` (up to 100 chunks per call); backoff on
+  429s.
+- **One model for everyone.** Vector columns have a fixed dimension — running
+  768-dim Gemini for free users and 1024-dim bge-m3 for BYO users would mean
+  dual dimension columns or truncation hacks, for a benefit that is now zero:
+  embeddings are free, so there is no cost for BYO to offload. BYO keys stay
+  chat-only.
+- Rate caps are measured empirically with the real key (provider-probe test,
+  numbers to LEARNINGS) rather than trusted from documentation.
+- Free-tier data terms: chunk text transits Google under the free tier's
+  data-use policy — documented transparently in SECURITY.md §10 with the
+  upgrade path, not hidden as an assumption.
