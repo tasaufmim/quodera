@@ -10,9 +10,32 @@ test("landing page renders the pitch", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 1 })).toContainText("demonstrated");
 });
 
-test("dashboard placeholder renders", async ({ page }) => {
+test("dashboard requires a session — anonymous visitors land on /sign-in", async ({ page }) => {
   await page.goto("/dashboard");
-  await expect(page.getByRole("heading", { level: 1, name: "Dashboard" })).toBeVisible();
+  await expect(page).toHaveURL(/\/sign-in$/);
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Sign in");
+  await expect(page.getByRole("button", { name: /try as guest/i })).toBeVisible();
+});
+
+test("guest journey: one click → workspace → upload → document listed", async ({ page }) => {
+  // the full user journey over the REAL stack: session, RLS rows, storage
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: /try as guest/i })
+    .first()
+    .click();
+  await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(page.getByText(/temporary guest workspace/i)).toBeVisible();
+
+  // upload a real (tiny) PDF through the actual input
+  await page.setInputFiles("#document-upload", {
+    name: "lease.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.from("%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF"),
+  });
+
+  await expect(page.getByText("lease.pdf")).toBeVisible();
+  await expect(page.getByText("digital_pdf · queued")).toBeVisible();
 });
 
 test("health endpoint reports ok without any dependency", async ({ request }) => {

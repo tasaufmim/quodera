@@ -138,7 +138,7 @@ fake, and the role is unprivileged in every other way.
 - **Three connections, three powers** (ADR 0010): runtime (`quodera_app` — tenant access only), admin (migrations/fixtures), and system (`quodera_system` — sanctioned cross-tenant reassignment: the guest→registered carry-over). Each is a distinct role with distinct grants; none can do another's job.
 - Guests are ordinary tenants (ADR 0009): a guest is a `users` row flagged `isAnonymous`, nothing more. No RLS carve-out exists anywhere in the system — a deliberate selection criterion for the guest design.
 
-## 5. Access model 📍 (Phase 2 — ADR 0009)
+## 5. Access model (shipped in Phase 2.1–2.6 — ADR 0009)
 
 | State                                | Can do                                                                       | Cannot do                                          |
 | ------------------------------------ | ---------------------------------------------------------------------------- | -------------------------------------------------- |

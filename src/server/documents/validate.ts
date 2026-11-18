@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
+import { GUEST_CAPS } from "@/lib/guest-caps";
 import { documentKind } from "@/server/db/schema";
 import { imageGuard, zipGuard } from "./guards";
 import { looksLikeText, sniff, type UploadKind } from "./sniff";
@@ -10,8 +11,8 @@ import { looksLikeText, sniff, type UploadKind } from "./sniff";
  */
 export const UPLOAD_LIMITS = {
   guest: {
-    maxBytes: 5 * 1024 * 1024,
-    maxDocuments: 2,
+    maxBytes: GUEST_CAPS.maxMb * 1024 * 1024,
+    maxDocuments: GUEST_CAPS.documents,
   },
   registered: {
     maxBytes: 20 * 1024 * 1024,
