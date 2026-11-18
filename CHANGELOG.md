@@ -5,6 +5,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); ver
 
 ## [Unreleased]
 
+### Added — Phase 2.5: hardened uploads + storage drivers
+
+- **`POST /api/documents`** with the full SECURITY §5 sequence: session tier → per-user rate guard → content-length gate → multipart parse → validation pipeline → guest count cap → storage put → tenant rows via `withUser()`. Plus **`GET /api/documents`** (RLS-scoped list).
+- **Validation pipeline** (`src/server/documents/`, pure and unit-tested against crafted hostile bytes): magic-byte sniffing (declared MIME ignored), zip-bomb rejection by DECLARED uncompressed size — the OOXML central directory is walked without ever decompressing — PNG/JPEG pixel caps (40 MP), honest-text check for txt/md, tier caps (guest 5 MB / 2 documents; registered 20 MB).
+- **Storage driver pattern** (same shape as the limiter): **R2** via `aws4fetch` (10 KB SigV4 signer — no multi-megabyte AWS SDK) when `R2_*` is configured; otherwise the **dev object store** (Postgres bytea, full put/get/delete parity) with one loud production error. Upload → store → retrieve is real in every environment, credentials or not.
+- Server-generated storage keys (`docs/<userId>/<uuid>`); user-supplied names are display-only metadata. `document.create` audit rows land in the append-only table.
+- The ≤10-page guest cap is explicitly deferred to parse time (Phase 3) — page count needs a parser, and upload time never parses.
+
 ### Added — Phase 2.4: domain schema (tenant tables + system role)
 
 - **Six tenant tables** with the full canary pattern (ADR 0008): `documents`, `document_versions`, `threads`, `messages`, `api_usage`, `audit_events` — RLS + FORCE + policies, FK cascades to `user` (guest purge rides them), denormalized `user_id` on every table so policies stay single-comparison and carry-over stays uniform.
