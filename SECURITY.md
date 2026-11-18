@@ -51,19 +51,19 @@ browser ──> /api/chat (withApi, auth, rate limit)
 - BYO keys are accepted at the proxy, used for that request only, never logged (redaction list), and never persisted unless the user explicitly opts in.
 - Spend alerts on the OpenRouter dashboard; key rotation is a runbook item (docs/ops/PROVISIONING.md).
 
-## 5. Upload hardening 📍 (Phase 2)
+## 5. Upload hardening (shipped in Phase 2.5 — `src/server/documents/`)
 
-Every upload passes, in order:
+Every upload passes, in order (`POST /api/documents`):
 
-1. **Content-length cap** (reject before reading the body).
-2. **Magic-byte sniffing** — the declared MIME type is ignored; file signatures decide.
-3. **Allowlist**: `application/pdf`, `image/png|jpeg|webp`, `text/plain`, `text/markdown`, DOCX/PPTX/XLSX ZIP signatures.
-4. **Decompression/zip-bomb guards** — bounded expansion ratio on OOXML; image pixel-count cap before decode.
-5. **Filename sanitization** — generated storage keys (uuid + sha256); user-supplied names are display-only, escaped at render.
-6. **Parser isolation** — parsing happens in the worker process, never in a route handler; parser crashes are contained and logged.
-7. Optional ClamAV pass before `status: ready`.
+1. **Session tier** — anonymous 401; guest/registered limits selected from `UPLOAD_LIMITS` (guest: 5 MB, 2 documents; registered: 20 MB).
+2. **Per-user rate guard** — 3/hour guests, 20/hour registered, shared 429 contract.
+3. **Content-length cap** — rejected before the body is read (limit + 1 MiB multipart overhead).
+4. **Magic-byte sniffing** — the declared MIME type is ignored; file signatures decide (SECURITY.md never trusted `Content-Type`). TXT/MD (no signature) must decode as clean UTF-8 text.
+5. **Decompression guards** — OOXML central directory is walked WITHOUT decompressing: declared uncompressed totals and entry counts are capped (a 100-byte file claiming 50 MB is a bomb, and we never inflate to find out). PNG/JPEG pixel caps reject 40 MP+ canvases; WebP rides the file-size cap (documented limitation).
+6. **Server-generated storage keys** — `docs/<userId>/<uuid>`; user-supplied names are display-only metadata, escaped at render, never in paths.
+7. **Tenant rows via `withUser()`** — document + version (sha256 recorded) + an append-only `document.create` audit event.
 
-PDFs are treated as hostile input by default — they are one of the most exploited file formats in existence.
+Storage is driver-gated like the limiter: **R2** (S3-compatible, `aws4fetch` — a 10 KB SigV4 signer, not the multi-MB AWS SDK) when `R2_*` env is set; otherwise the **dev object store** (Postgres bytea — full parity, one loud prod error, never the intended production home). PDFs are treated as hostile input by default — they are one of the most exploited file formats in existence. The ≤10-page guest cap is deferred to parse time (Phase 3): page count requires parsing, which upload time never does.
 
 ## 6. Prompt injection from documents 📍 (Phase 4–5)
 

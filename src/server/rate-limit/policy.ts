@@ -17,4 +17,6 @@ export const POLICY = {
   guestChatDaily: { limit: 5, windowSeconds: 60 * 60 * 24 },
   /** Guest uploads (ADR 0009). */
   guestUploadsPerHour: { limit: 3, windowSeconds: 60 * 60 },
+  /** Registered uploads: fair-use rate guard. */
+  uploadsPerHour: { limit: 20, windowSeconds: 60 * 60 },
 } satisfies Record<string, RateLimitOptions>;
