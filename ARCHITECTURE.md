@@ -119,16 +119,23 @@ One database, one schema; every tenant-owned row carries `user_id`, and **Postgr
 ```
 -- per transaction:
 SELECT set_config('app.user_id', $userId, true);   -- dies with the tx
--- policy (migrations/hardening/0001_tenancy_hardening.sql):
-USING      (user_id = current_setting('app.user_id', true)::uuid)
-WITH CHECK (user_id = current_setting('app.user_id', true)::uuid)
+-- policy (migrations/hardening/0003 + 0004 + 0005):
+USING      ((user_id = nullif(current_setting('app.user_id', true), '')::uuid)
+            OR current_user = 'quodera_system')
+WITH CHECK ((user_id = nullif(current_setting('app.user_id', true), '')::uuid)
+            OR current_user = 'quodera_system')
 ```
+
+The `OR current_user = 'quodera_system'` arm is the sanctioned cross-tenant
+operator (ADR 0010) — role membership is the one credential a session cannot
+fake, and the role is unprivileged in every other way.
 
 - `ENABLE` + `FORCE ROW LEVEL SECURITY` — FORCE because the app connects as the table owner (Neon branch owner), and owners bypass RLS unless forced. `rls.test.ts` proves the owner sees zero rows without context.
 - Default-deny: `current_setting(..., true)` returns NULL when unset; `user_id = NULL` filters everything. No tenant context → no rows. Ever.
 - `withUser(userId, fn)` (src/server/db/rls.ts) is the only sanctioned entry point — it opens the transaction and sets the context atomically.
 - Belt and braces: RLS sits _under_ the application layer. A future bug in query building still cannot cross tenants, because the database itself refuses.
 - **Two roles, two powers** (learned the hard way — see ADR 0008 postscript): the app connects as the unprivileged `quodera_app` role (`DATABASE_URL`); migrations and fixtures use the admin role (`DATABASE_ADMIN_URL`). Superusers bypass RLS categorically, so the runtime role must never be one — the tenancy tests connect as the runtime role and would catch a regression to a privileged connection.
+- **Three connections, three powers** (ADR 0010): runtime (`quodera_app` — tenant access only), admin (migrations/fixtures), and system (`quodera_system` — sanctioned cross-tenant reassignment: the guest→registered carry-over). Each is a distinct role with distinct grants; none can do another's job.
 - Guests are ordinary tenants (ADR 0009): a guest is a `users` row flagged `isAnonymous`, nothing more. No RLS carve-out exists anywhere in the system — a deliberate selection criterion for the guest design.
 
 ## 5. Access model 📍 (Phase 2 — ADR 0009)
@@ -143,9 +150,9 @@ Transitions: **"Try as guest"** mints a ghost `users` row (`isAnonymous`) plus a
 
 Enforcement is server-side in every handler (a three-state session check), never UI-only. Guests get no special tenancy treatment — `withUser()` and RLS behave identically for them.
 
-## 6. Data model draft 📍 (Phase 2 — ERD)
+## 6. Data model (tenant tables shipped in Phase 2.4; chunks/citations 📍 Phase 3)
 
-**System tables vs tenant tables.** better-auth's identity tables (`user`, `session`, `account`, `verification` — shipped in Phase 2.1) are **system tables**: they carry no user-scoped RLS, because session resolution looks up by token _before any tenant context exists_ — chicken-and-egg with `withUser`. They are written only by better-auth's parameterized queries on the runtime role. Everything downstream of a `user_id` FK is **tenant data** and copies the canary pattern (GUARDRAILS #2). Deletion cascades ride on FK constraints, which is what the guest purge (ADR 0009) will lean on.
+**System tables vs tenant tables.** better-auth's identity tables (`user`, `session`, `account`, `verification` — Phase 2.1) are **system tables**: they carry no user-scoped RLS, because session resolution looks up by token _before any tenant context exists_ — chicken-and-egg with `withUser`. They are written only by better-auth's parameterized queries on the runtime role. Everything downstream of a `user_id` FK is **tenant data** and follows the canary pattern (GUARDRAILS #2) — `documents`, `document_versions`, `threads`, `messages`, `api_usage` are live, each registered in the generic tenancy suite; `audit_events` is additionally **append-only by grant** (the runtime role's UPDATE/DELETE are revoked — repudiation defense). Deletion cascades ride on FK constraints, which is what the guest purge leans on; the upgrade carry-over (ADR 0010) reassigns ownership on the system connection, preserving ids and FKs.
 
 ```mermaid
 erDiagram

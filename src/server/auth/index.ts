@@ -7,6 +7,7 @@ import { getDb } from "@/server/db";
 import * as schema from "@/server/db/schema";
 import { env } from "@/server/lib/env";
 import { logger } from "@/server/lib/logger";
+import { carryOverTenantData } from "./carry-over";
 import { GUEST_SESSION_TTL_SECONDS, maybeSweepGuests } from "./purge";
 
 /**
@@ -66,11 +67,27 @@ export function createAuth(overrides: CreateAuthOverrides = {}) {
             await overrides.onLinkAccount({ anonymousUserId, newUserId });
             return;
           }
-          // production log: the conversion moment, ids only — no PII
+          // production upgrade: carry trial data to the registered user
+          // (ADR 0009 postscript) BEFORE the plugin deletes the ghost.
+          // Signup must never fail because the copy did — log, never throw.
           logger.info(
             { upgradedFromAnonymous: true, fromUserId: anonymousUserId, toUserId: newUserId },
             "guest upgraded to registered account",
           );
+          try {
+            const result = await carryOverTenantData(anonymousUserId, newUserId);
+            if (result.movedRows > 0) {
+              logger.info(
+                { movedRows: result.movedRows, toUserId: newUserId },
+                "guest trial data carried over",
+              );
+            }
+          } catch (error) {
+            logger.error(
+              { err: String(error), fromUserId: anonymousUserId, toUserId: newUserId },
+              "guest trial data carry-over failed — signup continues, data lost",
+            );
+          }
         },
       }),
     ],

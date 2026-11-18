@@ -5,9 +5,6 @@ import postgres from "postgres";
 const MIGRATIONS_DIR = path.join(import.meta.dirname, "migrations");
 const HARDENING_DIR = path.join(MIGRATIONS_DIR, "hardening");
 
-/** Runtime DB role the app connects as (see ADR 0008 — must NOT be a superuser). */
-const APP_ROLE = "quodera_app";
-
 /**
  * Apply every pending .sql migration, in order:
  *
@@ -37,7 +34,16 @@ export async function applyMigrations(databaseUrl: string): Promise<string[]> {
       applied_at timestamptz not null default now()
     )`;
 
-    await bootstrapAppRole(sql);
+    // Two roles, two powers (ADR 0008 + 0010): the unprivileged runtime role
+    // the app connects as, and the system role for sanctioned cross-tenant
+    // operations (upgrade carry-over). Both passwords come from env; the
+    // committed defaults are throwaways for local Docker.
+    await bootstrapRole(sql, "quodera_app", process.env.APP_DB_PASSWORD ?? "quodera_app_dev");
+    await bootstrapRole(
+      sql,
+      "quodera_system",
+      process.env.APP_SYSTEM_DB_PASSWORD ?? "quodera_system_dev",
+    );
 
     const files: Array<{ name: string; abs: string }> = [];
     for (const dir of [MIGRATIONS_DIR, HARDENING_DIR]) {
@@ -75,25 +81,26 @@ export async function applyMigrations(databaseUrl: string): Promise<string[]> {
 }
 
 /**
- * Ensure the runtime role exists. RLS only ever binds non-superuser roles —
+ * Ensure a login role exists. RLS only ever binds non-superuser roles —
  * connecting as the container's `postgres` (or any superuser) silently bypasses
  * every policy, which is precisely what rls.test.ts exists to prevent.
  *
- * The role's password comes from APP_DB_PASSWORD; the committed default is a
- * throwaway for local Docker. In production the value is set only in the
- * migration environment (never committed) — see docs/ops/PROVISIONING.md §5.
+ * - `quodera_app` (DATABASE_URL): the runtime role — unprivileged, RLS-bound.
+ * - `quodera_system` (DATABASE_SYSTEM_URL): sanctioned cross-tenant operator
+ *   (ADR 0010) — policies grant it explicitly; the runtime role is not a
+ *   member and cannot fake role membership.
  */
-async function bootstrapAppRole(sql: postgres.Sql): Promise<void> {
-  const password = (process.env.APP_DB_PASSWORD ?? "quodera_app_dev").replace(/'/g, "''");
-  if (!/^[a-z_][a-z0-9_]*$/.test(APP_ROLE)) {
-    throw new Error(`APP role name is not a safe identifier: ${APP_ROLE}`);
+async function bootstrapRole(sql: postgres.Sql, role: string, password: string): Promise<void> {
+  if (!/^[a-z_][a-z0-9_]*$/.test(role)) {
+    throw new Error(`role name is not a safe identifier: ${role}`);
   }
+  const safePassword = password.replace(/'/g, "''");
 
   await sql.unsafe(`
     do $$
     begin
-      if not exists (select 1 from pg_roles where rolname = '${APP_ROLE}') then
-        create role ${APP_ROLE} login password '${password}' nosuperuser nobypassrls;
+      if not exists (select 1 from pg_roles where rolname = '${role}') then
+        create role ${role} login password '${safePassword}' nosuperuser nobypassrls;
       end if;
     end
     $$;

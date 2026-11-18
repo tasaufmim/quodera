@@ -57,6 +57,9 @@ jobs:
       # Admin role (container superuser) — migrations & fixtures only
       DATABASE_ADMIN_URL: postgres://postgres:postgres@localhost:5432/quodera_test
       APP_DB_PASSWORD: quodera_app_dev
+      # System role (ADR 0010) — sanctioned cross-tenant ops (carry-over)
+      DATABASE_SYSTEM_URL: postgres://quodera_system:quodera_system_dev@localhost:5432/quodera_test
+      APP_SYSTEM_DB_PASSWORD: quodera_system_dev
       # Auth (magic-link flow tests) — deterministic value, deliberately not secret
       BETTER_AUTH_SECRET: test-only-value-not-a-secret
       BETTER_AUTH_URL: http://localhost:3000

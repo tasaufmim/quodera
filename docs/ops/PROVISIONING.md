@@ -44,9 +44,10 @@ Phase 1's external setup. Each section: what to create, what to copy where, how 
 
 1. Create project `quodera` → region closest to Vercel's default region (minimize cold-start round trips).
 2. Enable the **pgvector** extension (SQL editor: `CREATE EXTENSION IF NOT EXISTS vector;`) — or let migrations fail loudly until then.
-3. Copy the **pooled** connection string (indirect/pooler). Pooled + `prepare:false` in our client = Neon transaction mode compatible (ADR 0003). Two roles, two URLs (ADR 0008):
+3. Copy the **pooled** connection string (indirect/pooler). Pooled + `prepare:false` in our client = Neon transaction mode compatible (ADR 0003). Three roles, three URLs (ADR 0008 + 0010):
    - `DATABASE_URL` → the **app role**: run migrations once locally/CI first (they bootstrap `quodera_app` with `APP_DB_PASSWORD`), then use `postgres://quodera_app:<secret>@...` in Vercel.
    - `DATABASE_ADMIN_URL` → the Neon **project owner** (migrations/fixtures only; used by `pnpm db:migrate`, never shipped to Vercel).
+   - `DATABASE_SYSTEM_URL` → the **system role** `quodera_system` (ADR 0010, bootstrapped with `APP_SYSTEM_DB_PASSWORD`): the guest→registered carry-over runs on it. Ship to Vercel (Production env) — without it, upgrades lose trial data with a loud log instead of failing.
 4. Create a branch `dev` for experimentation; `main` branch is production. CI uses ephemeral Docker Postgres, never Neon.
 
 ## 4. Local development
@@ -60,7 +61,7 @@ pnpm dev
 ```
 
 - Postgres data persists in the `quodera_pgdata` volume; `pnpm db:down -v` wipes it.
-- `pnpm test:db` runs the tenancy tests over the runtime role (`DATABASE_URL`), with fixtures on the admin role (`DATABASE_ADMIN_URL`) — both from `.env`.
+- `pnpm test:db` runs the tenancy tests over the runtime role (`DATABASE_URL`), with fixtures on the admin role (`DATABASE_ADMIN_URL`); the system-role suite needs `DATABASE_SYSTEM_URL` (skips without it) — all from `.env`.
 
 ## 5. Secrets manifest
 

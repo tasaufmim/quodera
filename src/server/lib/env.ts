@@ -30,6 +30,7 @@ const envSchema = z.object({
   SENTRY_DSN: optionalString,
   BETTER_AUTH_SECRET: optionalString,
   BETTER_AUTH_URL: optionalString,
+  DATABASE_SYSTEM_URL: optionalString,
   GOOGLE_CLIENT_ID: optionalString,
   GOOGLE_CLIENT_SECRET: optionalString,
   GITHUB_CLIENT_ID: optionalString,

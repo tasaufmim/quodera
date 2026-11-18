@@ -6,6 +6,14 @@ Format: `### YYYY-MM-DD — topic` + a short story.
 
 ---
 
+### 2026-11-18 — Superuser dev environments mask FORCE-RLS failures
+
+**What:** designing the guest→registered carry-over, the obvious move was the admin connection (it already existed). It would have passed every test in every environment we have — and failed ONLY on Neon, in production, on the first real upgrade.
+
+**Why:** locally and in CI the admin is a Docker/runner SUPERUSER, and superusers bypass RLS categorically. On Neon the admin is the table OWNER, and FORCE binds owners. Same code, opposite outcomes, distinguished only by an environment we cannot test in.
+
+**Now:** cross-tenant operations run on a dedicated `quodera_system` role whose policy arm (`current_user = 'quodera_system'`) is exercised directly by the tenancy suite — the operation works for the same reason in every environment, or fails in all of them. Generalized lesson: permission-dependent behavior must be owned by a role you control, never by whatever the local admin happens to be.
+
 ### 2026-11-17 — Parallel test FILES race on a shared physical database
 
 **What:** after adding the guest suite, passing tests started failing randomly-ish: a magic-link user "vanished" mid-test, and a just-created guest row was missing. The same suites passed individually.

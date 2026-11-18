@@ -15,6 +15,13 @@
       "when": 1794940538775,
       "tag": "0001_cold_dust",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795028153706,
+      "tag": "0002_odd_magdalene",
+      "breakpoints": true
     }
   ]
 }
