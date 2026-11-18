@@ -150,7 +150,7 @@ Transitions: **"Try as guest"** mints a ghost `users` row (`isAnonymous`) plus a
 
 Enforcement is server-side in every handler (a three-state session check), never UI-only. Guests get no special tenancy treatment — `withUser()` and RLS behave identically for them.
 
-## 6. Data model (tenant tables shipped in Phase 2.4; chunks/citations 📍 Phase 3)
+## 6. Data model (tenant tables shipped 2.4; `chunks` shipped 3.2; `citations` 📍 Phase 4)
 
 **System tables vs tenant tables.** better-auth's identity tables (`user`, `session`, `account`, `verification` — Phase 2.1) are **system tables**: they carry no user-scoped RLS, because session resolution looks up by token _before any tenant context exists_ — chicken-and-egg with `withUser`. They are written only by better-auth's parameterized queries on the runtime role. Everything downstream of a `user_id` FK is **tenant data** and follows the canary pattern (GUARDRAILS #2) — `documents`, `document_versions`, `threads`, `messages`, `api_usage` are live, each registered in the generic tenancy suite; `audit_events` is additionally **append-only by grant** (the runtime role's UPDATE/DELETE are revoked — repudiation defense). Deletion cascades ride on FK constraints, which is what the guest purge leans on; the upgrade carry-over (ADR 0010) reassigns ownership on the system connection, preserving ids and FKs.
 
