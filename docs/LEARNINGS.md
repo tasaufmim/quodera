@@ -6,6 +6,14 @@ Format: `### YYYY-MM-DD — topic` + a short story.
 
 ---
 
+### 2026-11-19 — A bundler can break a dependency's runtime self-configuration
+
+**What:** every ingest failed with `internal` in the PRODUCTION build while the same code passed all unit and integration tests. The log held the giveaway: "Setting up fake worker failed: Cannot find module …/pdf.worker.mjs".
+
+**Why:** pdfjs-dist (legacy/Node build) resolves its worker via a dynamic import at runtime. Vitest resolves that against normal node_modules paths. Next's webpack bundles it into `.next/server/app/api/documents/route.js` — and the relative dynamic import then points at a file that does not exist in the bundle.
+
+**Now:** `serverExternalPackages: ["pdfjs-dist"]` keeps the package out of the server bundle so Node's ordinary resolution works at runtime. The general lesson: a library that configures ITSELF at runtime (dynamic imports, file resolution) is incompatible with bundling by default — and only an environment-faithful test (production build, real `after()`) can catch the class, because unit tests exercise the dependency's happy resolution path, not the deployment's.
+
 ### 2026-11-18 — Superuser dev environments mask FORCE-RLS failures
 
 **What:** designing the guest→registered carry-over, the obvious move was the admin connection (it already existed). It would have passed every test in every environment we have — and failed ONLY on Neon, in production, on the first real upgrade.

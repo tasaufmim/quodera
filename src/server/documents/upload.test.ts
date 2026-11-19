@@ -1,6 +1,7 @@
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createAuth } from "@/server/auth";
+import { setAfterScheduler } from "@/server/lib/after-scheduler";
 import { withUser } from "@/server/db/rls";
 import { documents } from "@/server/db/schema";
 import { getStorage } from "@/server/storage";
@@ -24,6 +25,11 @@ const d = describe.skipIf(!runtimeUrl)("document upload route", () => {
     const { applyMigrations } = await import("../db/migrate-lib");
     await applyMigrations(adminUrl!);
     cleanup = postgres(adminUrl!, { prepare: false, max: 1 });
+    // Next's after() throws outside a request scope — run ingest eagerly so
+    // the tests observe the post-response world synchronously
+    setAfterScheduler((callback) => {
+      void callback();
+    });
   });
 
   afterAll(async () => {

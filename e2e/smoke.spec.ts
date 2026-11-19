@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { buildTestPdf } from "../src/server/documents/fixtures";
 
 /**
  * Phase 1 smoke: the routes that must never break, regardless of feature
@@ -27,15 +28,29 @@ test("guest journey: one click → workspace → upload → document listed", as
   await expect(page).toHaveURL(/\/dashboard$/);
   await expect(page.getByText(/temporary guest workspace/i)).toBeVisible();
 
-  // upload a real (tiny) PDF through the actual input
+  // upload a REAL pdf-lib-generated PDF (text layer included) so ingest
+  // walks the full pipeline: parse → chunk → embedding gate
   await page.setInputFiles("#document-upload", {
     name: "lease.pdf",
     mimeType: "application/pdf",
-    buffer: Buffer.from("%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF"),
+    buffer: Buffer.from(await buildTestPdf([[{ text: "The tenant shall pay rent monthly." }]])),
   });
 
   await expect(page.getByText("lease.pdf")).toBeVisible();
-  await expect(page.getByText("digital_pdf · queued")).toBeVisible();
+
+  // ingest runs via after(): the terminal state is honest either way —
+  // "Ready" when embeddings are configured, "Failed" with the
+  // embedding-unavailable reason when they are not (CI default).
+  // The AutoRefresh poll re-renders the list when ingest completes.
+  const hasGeminiKey = Boolean(process.env.GEMINI_API_KEY);
+  const terminal = hasGeminiKey ? "Ready" : "Failed";
+  await expect(page.getByText(terminal, { exact: true })).toBeVisible({ timeout: 15_000 });
+  if (!hasGeminiKey) {
+    // same budget as the status — poll-render cadence can exceed the 5s default
+    await expect(page.getByText(/Embeddings are not configured/i)).toBeVisible({
+      timeout: 15_000,
+    });
+  }
 });
 
 test("health endpoint reports ok without any dependency", async ({ request }) => {

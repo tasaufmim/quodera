@@ -5,6 +5,8 @@ import { getSessionUser } from "@/server/auth/session";
 import { withUser } from "@/server/db/rls";
 import { auditEvents, documents, documentVersions } from "@/server/db/schema";
 import { withApi } from "@/server/lib/api-handler";
+import { scheduleAfter } from "@/server/lib/after-scheduler";
+import { ingestDocument } from "@/server/documents/ingest";
 import { refineTextKind, UPLOAD_LIMITS, validateUpload } from "@/server/documents/validate";
 import { tooManyRequests } from "@/server/rate-limit/headers";
 import { getLimiter } from "@/server/rate-limit/limiter";
@@ -136,6 +138,18 @@ export const POST = withApi("documents.create", async (request: Request) => {
     return doc!;
   });
 
+  // Ingest runs AFTER the response is sent: the user's upload resolves
+  // immediately; parsing/embedding land via the status flow. Next's after()
+  // inside a real request; tests inject an eager scheduler (see
+  // after-scheduler.ts — after() throws outside a request scope).
+  scheduleAfter(() =>
+    ingestDocument({
+      userId: user.id,
+      documentId: created.id,
+      tier: isGuest ? "guest" : "registered",
+    }),
+  );
+
   return Response.json(
     {
       document: {
@@ -163,6 +177,8 @@ export const GET = withApi("documents.list", async (request: Request) => {
         name: documents.name,
         kind: documents.kind,
         status: documents.status,
+        error: documents.error,
+        pageCount: documents.pageCount,
         createdAt: documents.createdAt,
       })
       .from(documents)

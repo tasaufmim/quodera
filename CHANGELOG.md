@@ -5,6 +5,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); ver
 
 ## [Unreleased]
 
+### Added — Phase 3.3: ingest orchestration (embeddings + status flow)
+
+- **`ingestDocument`** — the full pipeline behind every upload: parse → guest ≤10-page gate (rejection with a reason, not truncation) → chunk → embedding availability + quota gates → **atomic index** (every chunk + the `ready` flip in ONE `withUser()` transaction — a document is fully indexed or carries a machine-readable reason, never half-parsed). Triggered via Next's `after()` (post-response); a tiny scheduler indirection keeps it testable outside a request scope.
+- **Gemini embedding driver**: `batchEmbedContents` (≤100 inputs/call), 768 dims, backoff on 429/5xx honoring `Retry-After`, fail-fast on 4xx — unit-tested against a mocked fetch. Without `GEMINI_API_KEY`, documents fail honestly with `embedding-unavailable` (parsed fine, indexed never, reason stated). With the key, the integration suite proves the happy path: real vectors, `api_usage` metering (first writers: route `embedding`, provider `gemini`), `document.ingest` audit.
+- **Document error codes** as a stable contract (`no-text-layer`, `too-many-pages`, `embedding-quota`, …) with honest dashboard copy for each.
+- **Dashboard status flow**: queued → parsing → ready/failed rendered from RLS-scoped queries, `pageCount` in the meta line, red-chip failures with reasons, and a poll-refresh that only runs while documents are pending.
+- **Embedding batch quotas** (one unit = one batch call): 5/day guests, 50/day registered — keyed per user through the existing limiter.
+- **`serverExternalPackages: ["pdfjs-dist"]`** — pdfjs's worker is resolved by runtime dynamic import; bundling it into the server broke that ("Setting up fake worker failed" → every ingest `internal` in production, green in vitest). Keeping it external restores Node resolution; found by e2e, invisible to unit tests, now a LEARNINGS entry.
+
 ### Added — Phase 3.1/3.2: parsers with exact provenance + the chunks table
 
 - **Digital-PDF parser** (pdfjs-dist, Node — ADR 0005 amendment): text items grouped by baseline into lines, lines into paragraphs by vertical-gap analysis, oversized lines become sections. Page/line provenance is asserted **exactly** against generated fixtures — a regression of one line number fails the suite.
