@@ -19,4 +19,12 @@ export const POLICY = {
   guestUploadsPerHour: { limit: 3, windowSeconds: 60 * 60 },
   /** Registered uploads: fair-use rate guard. */
   uploadsPerHour: { limit: 20, windowSeconds: 60 * 60 },
+  /**
+   * Embedding batch quota (ADR 0004 postscript): one unit = one
+   * batchEmbedContents call (≤100 chunks). Free-tier RPM/RPD is the real
+   * constraint; 5 batches/day covers several guest documents, 50/day is
+   * generous fair use for registered users.
+   */
+  guestEmbedBatchesDaily: { limit: 5, windowSeconds: 60 * 60 * 24 },
+  embedBatchesDaily: { limit: 50, windowSeconds: 60 * 60 * 24 },
 } satisfies Record<string, RateLimitOptions>;

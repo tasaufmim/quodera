@@ -172,6 +172,10 @@ export const documents = pgTable(
     name: text("name").notNull(),
     status: documentStatus("status").notNull().default("queued"),
     kind: documentKind("kind").notNull(),
+    /** Machine-readable failure reason (documents/error.ts codes) — null unless failed. */
+    error: text("error"),
+    /** Set at parse time; null for formats without pagination. */
+    pageCount: integer("page_count"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

@@ -42,6 +42,7 @@ const envSchema = z.object({
   R2_ACCESS_KEY_ID: optionalString,
   R2_SECRET_ACCESS_KEY: optionalString,
   R2_BUCKET: optionalString,
+  GEMINI_API_KEY: optionalString,
 });
 
 export type Env = z.infer<typeof envSchema>;
