@@ -5,6 +5,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); ver
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-11-20
+
+### Added — Phase 3.4: verification gate + release
+
+- **Provider probe test** — the ADR 0004 postscript promise, made executable: with `GEMINI_API_KEY` set, every gate run MEASURES the live embedding contract (768 dims, finite values, distinct vectors for distinct texts, English + Bengali — the multilingual claim tested honestly) and logs round-trip latency for LEARNINGS. Without the key it skips with a visible explanation; the honest-degradation path is already fully covered.
+- `pnpm verify:phase3` — the phase's definition of done: the full Phase 2 chain PLUS the provider probe leg. AGENTS' definition of done moves to it.
+
 ### Added — Phase 3.3: ingest orchestration (embeddings + status flow)
 
 - **`ingestDocument`** — the full pipeline behind every upload: parse → guest ≤10-page gate (rejection with a reason, not truncation) → chunk → embedding availability + quota gates → **atomic index** (every chunk + the `ready` flip in ONE `withUser()` transaction — a document is fully indexed or carries a machine-readable reason, never half-parsed). Triggered via Next's `after()` (post-response); a tiny scheduler indirection keeps it testable outside a request scope.
@@ -109,6 +116,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); ver
 - **Governance docs:** README, ARCHITECTURE (pipeline, citation schema, tenancy, failure modes), SECURITY (threat model + debt register), AGENTS, CODING_GUIDELINES, GUARDRAILS, PROVISIONING runbook, LEARNINGS journal, ADRs 0001–0008.
 - **Verification gate:** `pnpm verify:phase1` (+ `SMOKE=1` HTTP probes).
 
-[Unreleased]: https://github.com/tasaufmim/quodera/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/tasaufmim/quodera/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/tasaufmim/quodera/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/tasaufmim/quodera/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/tasaufmim/quodera/releases/tag/v0.1.0

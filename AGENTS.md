@@ -47,9 +47,9 @@ full invariants and is enforced in PR review.
 | e2e (builds nothing itself; run `pnpm build` first) | `pnpm build && pnpm test:e2e`                                             |
 | new migration from schema                           | `pnpm db:generate` (then write hardening SQL if the table is tenant data) |
 | apply migrations                                    | `pnpm db:migrate`                                                         |
-| **definition of done**                              | `pnpm verify:phase2`                                                      |
+| **definition of done**                              | `pnpm verify:phase3`                                                      |
 
-Always finish with `pnpm verify:phase2` before claiming a task is complete.
+Always finish with `pnpm verify:phase3` before claiming a task is complete.
 
 ## Repo map
 
@@ -75,12 +75,13 @@ Always finish with `pnpm verify:phase2` before claiming a task is complete.
 
 ## Phase context (where we are)
 
-Phase 1 (foundation) and Phase 2 sub-phases 2.1–2.6 are complete: better-auth
-(OAuth + magic links + guest ghost sessions per ADR 0009), the full tenant
-schema under the canary pattern (every table: RLS + FORCE + tenancy tests),
-Upstash quotas incl. guest tiers, hardened uploads with the storage driver
-pattern, and the three-state UI (sign-in page, guest banner, dashboard).
-Next is Phase 2.7 — the `verify:phase2` gate — then Phase 3 ingest: parsing,
-structure-aware chunking with provenance, Gemini embeddings, pgvector
-indexing. Read docs/adr/0008, 0009, and 0010 before touching auth, quotas,
-carry-over, or any new table; register new tenant tables in tenancy.test.ts.
+Phase 1 (foundation), Phase 2 (identity, tenancy at scale, guest mode,
+hardened uploads, the human surface), and Phase 3 (ingest: parsers with
+exact provenance, paragraph-level chunking, Gemini embeddings, the atomic
+status flow) are complete — `pnpm verify:phase3` is the definition of done.
+Next is Phase 4 — retrieval + cited chat: hybrid tsvector+pgvector search,
+rerank, the LLM proxy (BYO + demo pool, ADR 0007), SSE streaming, and the
+citation contract (ADR 0006) rendered in the UI. Phase 5 adds the OCR
+worker for scans/images (ADR 0005). Read docs/adr/0008, 0009, and 0010
+before touching auth, quotas, carry-over, or any new table; register new
+tenant tables in tenancy.test.ts.
