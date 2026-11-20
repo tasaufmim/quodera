@@ -3,7 +3,7 @@ import { logger, type Logger } from "./logger";
 import { captureException } from "./observability";
 import { runWithContext } from "./request-context";
 
-export type ApiHandler = (request: Request) => Promise<Response>;
+export type ApiHandler = (request: Request, context?: unknown) => Promise<Response>;
 
 interface WithApiOptions {
   /** Injectable for tests — defaults to the shared logger. */
@@ -17,11 +17,12 @@ interface WithApiOptions {
  *  - stores the request in AsyncLocalStorage (getRequestContext())
  *  - structured start/finish logging with duration, never containing secrets
  *  - catches every error → 500 JSON + Sentry, never an unhandled throw
+ *  - forwards Next's route context (dynamic params) untouched
  *
  * Usage: `export const GET = withApi("route-name", async (request) => …)`
  */
 export function withApi(route: string, handler: ApiHandler, options?: WithApiOptions): ApiHandler {
-  return async (request: Request) => {
+  return async (request: Request, context?: unknown) => {
     const requestId = randomUUID();
     const startedAt = Date.now();
 
@@ -33,7 +34,7 @@ export function withApi(route: string, handler: ApiHandler, options?: WithApiOpt
       });
 
       try {
-        const response = await handler(request);
+        const response = await handler(request, context);
         setRequestId(response, requestId);
         requestLogger.info(
           { status: response.status, durationMs: Date.now() - startedAt },

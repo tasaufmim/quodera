@@ -262,7 +262,7 @@ Request IDs therefore originate in `withApi` (Node), not middleware. The future 
 1. ✅ Foundation — scaffold, CI/CD, tenancy canary, observability, limiter contract
 2. Auth (better-auth: OAuth + magic links + guest ghost accounts, ADR 0009), domain schema, Upstash quotas incl. guest tiers, hardened uploads with guest caps, three-state gating
 3. ✅ Ingest: parsing, chunking w/ provenance, embeddings, indexing
-4. Retrieval + cited generation + SSE + LLM proxy
+4. ✅ Retrieval + cited generation + SSE + LLM proxy
 5. OCR worker + scanned/image pipeline + tables
 6. Evals in CI, security hardening, audit log
 7. Ship: demo, landing copy, CV

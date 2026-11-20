@@ -5,6 +5,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); ver
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-11-20
+
+### Added — Phase 4.4: the chat surface + phase gate
+
+- **`/chat`** — the surface where the product's whole point becomes visible: thread sidebar, streaming answers with **live `[n]` superscripts**, the **citation panel** (document, page, ¶, lines, span, verified state), the `uncited` warning badge, and BYO-key entry (sessionStorage only — never persisted server-side, per ADR 0007).
+- **Thread endpoints**: `GET /api/threads` + `GET /api/threads/[id]/messages` — history WITH its citations (marker→chunk→document names), so reloading a thread re-renders its evidence.
+- **Honest error copy**: the demo 429 names the BYO upgrade (ADR 0007's upsell); 503 says chat isn't configured; unverified markers render dimmed — the model's noise, rejected by the verifier, never faked as evidence.
+- **e2e: the chat journey** — guest session via the real auth stack → ask → the honest refusal streams over real SSE into the real UI (with keys set locally, the same journey runs the full cited-answer path).
+- `withApi` now forwards Next's route context (dynamic params) — required by the threads/messages route, invisible to every other handler.
+- `pnpm verify:phase4` — the cumulative gate; `verify:phase3` + the chat leg.
+- **Unit**: SSE client parser (frame boundaries, malformed frames), citation segmentation (verified/unverified markers, multi-digit, adjacent, DOCX-like label degradation).
+
 ### Added — Phase 4.2/4.3: the cited-chat pipeline (LLM proxy + citation contract)
 
 - **`POST /api/chat`** (SSE): session → thread → message → retrieval → (refusal is FREE) → quota → LLM stream → verify → persist. Every generated message is metered (`api_usage`); every answer attaches citations or refuses (GUARDRAILS #5).
@@ -136,7 +148,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); ver
 - **Governance docs:** README, ARCHITECTURE (pipeline, citation schema, tenancy, failure modes), SECURITY (threat model + debt register), AGENTS, CODING_GUIDELINES, GUARDRAILS, PROVISIONING runbook, LEARNINGS journal, ADRs 0001–0008.
 - **Verification gate:** `pnpm verify:phase1` (+ `SMOKE=1` HTTP probes).
 
-[Unreleased]: https://github.com/tasaufmim/quodera/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/tasaufmim/quodera/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/tasaufmim/quodera/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/tasaufmim/quodera/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/tasaufmim/quodera/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/tasaufmim/quodera/releases/tag/v0.1.0
