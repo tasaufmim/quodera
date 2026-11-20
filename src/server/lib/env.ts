@@ -43,6 +43,9 @@ const envSchema = z.object({
   R2_SECRET_ACCESS_KEY: optionalString,
   R2_BUCKET: optionalString,
   GEMINI_API_KEY: optionalString,
+  OPENROUTER_API_KEY: optionalString,
+  OPENROUTER_DEMO_MODEL: optionalString,
+  OPENROUTER_BYO_MODEL: optionalString,
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -8,6 +8,7 @@ import {
   apiUsage,
   auditEvents,
   chunks,
+  citations,
   documentVersions,
   documents,
   messages,
@@ -190,6 +191,58 @@ const TABLES: Array<{ label: string; ops: TenancyOps<unknown> }> = [
           .returning({ id: chunks.id }),
       crossDelete: (tx, owner) =>
         tx.delete(chunks).where(eq(chunks.userId, owner)).returning({ id: chunks.id }),
+    },
+  },
+  {
+    label: "citations",
+    ops: {
+      seed: async (tx, userId) => {
+        const [doc] = await tx
+          .insert(documents)
+          .values({ userId, name: `cite-doc-${userId}`, kind: "digital_pdf" })
+          .returning({ id: documents.id });
+        const [version] = await tx
+          .insert(documentVersions)
+          .values({ userId, documentId: doc!.id, versionNo: 1 })
+          .returning({ id: documentVersions.id });
+        const [chunk] = await tx
+          .insert(chunks)
+          .values({ userId, versionId: version!.id, paragraphNo: 1, content: "seed" })
+          .returning({ id: chunks.id });
+        const [thread] = await tx
+          .insert(threads)
+          .values({ userId, title: "t" })
+          .returning({ id: threads.id });
+        const [message] = await tx
+          .insert(messages)
+          .values({ userId, threadId: thread!.id, role: "assistant", content: "m" })
+          .returning({ id: messages.id });
+        await tx.insert(citations).values({
+          userId,
+          chunkId: chunk!.id,
+          messageId: message!.id,
+          marker: 1,
+          span: "seed",
+        });
+        return { chunkId: chunk!.id, messageId: message!.id };
+      },
+      selectAll: (tx) => tx.select({ userId: citations.userId }).from(citations),
+      forged: (tx, seedContext) =>
+        tx.insert(citations).values({
+          userId: UUID_A,
+          chunkId: (seedContext as { chunkId: string }).chunkId,
+          messageId: (seedContext as { messageId: string }).messageId,
+          marker: 2,
+          span: "forged",
+        }),
+      crossUpdate: (tx, owner) =>
+        tx
+          .update(citations)
+          .set({ span: "pwned" })
+          .where(eq(citations.userId, owner))
+          .returning({ id: citations.id }),
+      crossDelete: (tx, owner) =>
+        tx.delete(citations).where(eq(citations.userId, owner)).returning({ id: citations.id }),
     },
   },
 ];

@@ -13,8 +13,14 @@ export const POLICY = {
   authSensitive: { limit: 10, windowSeconds: 60 * 60 },
   /** Guest-session creation (ADR 0009): the anti-farming guard. 3/day per IP. */
   guestCreation: { limit: 3, windowSeconds: 60 * 60 * 24 },
-  /** Guest chat (ADR 0009): shared free-model pool. */
-  guestChatDaily: { limit: 5, windowSeconds: 60 * 60 * 24 },
+  /**
+   * The shared free-model demo pool (ADR 0007/0009): guests AND registered
+   * demo users, 5 messages/day — sized under OpenRouter's 50 RPD free-tier
+   * cap so the pool can never be drained by one user.
+   */
+  demoChatDaily: { limit: 5, windowSeconds: 60 * 60 * 24 },
+  /** BYO-key chat: unlimited by their own plan, infra-guarded 60/hour. */
+  byoChatPerHour: { limit: 60, windowSeconds: 60 * 60 },
   /** Guest uploads (ADR 0009). */
   guestUploadsPerHour: { limit: 3, windowSeconds: 60 * 60 },
   /** Registered uploads: fair-use rate guard. */

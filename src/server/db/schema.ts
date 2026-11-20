@@ -221,6 +221,36 @@ export const threads = pgTable(
   (table) => [index("threads_user_id_idx").on(table.userId)],
 );
 
+/**
+ * Citations (Phase 4.2/4.3): the persistent marker→chunk mapping for every
+ * assistant message. Reloading a thread re-renders [n] markers from these
+ * rows — without persistence, history would lose its evidence (ADR 0006).
+ * `verified` means reference-valid (the marker points at a chunk that was
+ * actually retrieved — ADR 0011 #5); entailment grading arrives in Phase 6.
+ */
+export const citations = pgTable(
+  "citations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    chunkId: uuid("chunk_id")
+      .notNull()
+      .references(() => chunks.id, { onDelete: "cascade" }),
+    messageId: uuid("message_id")
+      .notNull()
+      .references(() => messages.id, { onDelete: "cascade" }),
+    /** The [n] marker as it appears in the assistant message. */
+    marker: integer("marker").notNull(),
+    /** The evidence text at cite time (the chunk's content). */
+    span: text("span").notNull(),
+    verified: boolean("verified").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("citations_message_id_idx").on(table.messageId)],
+);
+
 export const messages = pgTable(
   "messages",
   {
