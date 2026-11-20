@@ -79,9 +79,9 @@ Phase 1 (foundation), Phase 2 (identity, tenancy at scale, guest mode,
 hardened uploads, the human surface), and Phase 3 (ingest: parsers with
 exact provenance, paragraph-level chunking, Gemini embeddings, the atomic
 status flow) are complete — `pnpm verify:phase3` is the definition of done.
-Next is Phase 4 — retrieval + cited chat: hybrid tsvector+pgvector search,
-rerank, the LLM proxy (BYO + demo pool, ADR 0007), SSE streaming, and the
-citation contract (ADR 0006) rendered in the UI. Phase 5 adds the OCR
-worker for scans/images (ADR 0005). Read docs/adr/0008, 0009, and 0010
-before touching auth, quotas, carry-over, or any new table; register new
-tenant tables in tenancy.test.ts.
+Phase 4 is in progress: hybrid RRF retrieval shipped (4.1, ADR 0011).
+Next: the LLM proxy with SSE streaming, the citation-marker contract, and
+the chat UI (4.2–4.4). Phase 5 adds the OCR worker for scans/images
+(ADR 0005). Read docs/adr/0008, 0009, 0010, and 0011 before touching auth,
+quotas, carry-over, retrieval, or any new table; register new tenant tables
+in tenancy.test.ts.
