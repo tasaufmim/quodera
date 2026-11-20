@@ -37,7 +37,7 @@ Portfolio-grade build, in progress. Phase 1 (foundation) is complete and deploye
 | ----- | ------------------------------------------------------------------------------------------------------------------------ | ------- |
 | 1     | Foundation: scaffold, governance docs, CI/CD, RLS tenancy canary, observability, rate-limit contract                     | ✅ done |
 | 2     | Auth (better-auth: OAuth + magic links), one-click guest trial (ADR 0009), real schema, Upstash quotas, hardened uploads | ✅ done |
-| 3     | Ingest: parsing, structure-aware chunking with provenance, Gemini embeddings, pgvector indexing                          | ⬜      |
+| 3     | Ingest: parsing, structure-aware chunking with provenance, Gemini embeddings, pgvector indexing                          | ✅ done |
 | 4     | Retrieval & chat: hybrid BM25+vector, rerank, cited generation, SSE streaming, BYO-key LLM proxy                         | ⬜      |
 | 5     | OCR worker (layout-aware, line boxes), scanned PDFs & images, tables                                                     | ⬜      |
 | 6     | Evals (golden set, citation precision) in CI, security hardening, audit log                                              | ⬜      |

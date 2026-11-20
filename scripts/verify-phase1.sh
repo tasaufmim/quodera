@@ -27,7 +27,19 @@ say "unit tests"
 pnpm test
 
 say "database + RLS tenancy tests"
-if [ -n "${DATABASE_URL:-}" ] || [ -n "${DATABASE_ADMIN_URL:-}" ]; then
+if [ -n "${DATABASE_URL:-}" ]; then
+  # pre-flight: one actionable line instead of a wall of ECONNREFUSED traces
+  if ! node -e '
+    const net = require("net");
+    const url = new URL(process.env.DATABASE_URL);
+    const socket = net.connect(Number(url.port || 5432), url.hostname);
+    socket.setTimeout(1500, () => { socket.destroy(); process.exit(1); });
+    socket.on("connect", () => { socket.destroy(); process.exit(0); });
+    socket.on("error", () => process.exit(1));
+  ' 2>/dev/null; then
+    echo "  database unreachable — start Docker and run 'pnpm db:up', then retry." >&2
+    exit 1
+  fi
   pnpm test:db
 else
   echo "  skipped — no DATABASE_URL. Run 'pnpm db:up' and copy .env.example to .env first."
