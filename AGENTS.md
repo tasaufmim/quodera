@@ -47,9 +47,9 @@ full invariants and is enforced in PR review.
 | e2e (builds nothing itself; run `pnpm build` first) | `pnpm build && pnpm test:e2e`                                             |
 | new migration from schema                           | `pnpm db:generate` (then write hardening SQL if the table is tenant data) |
 | apply migrations                                    | `pnpm db:migrate`                                                         |
-| **definition of done**                              | `pnpm verify:phase3`                                                      |
+| **definition of done**                              | `pnpm verify:phase4`                                                      |
 
-Always finish with `pnpm verify:phase3` before claiming a task is complete.
+Always finish with `pnpm verify:phase4` before claiming a task is complete.
 
 ## Repo map
 
@@ -79,10 +79,12 @@ Phase 1 (foundation), Phase 2 (identity, tenancy at scale, guest mode,
 hardened uploads, the human surface), and Phase 3 (ingest: parsers with
 exact provenance, paragraph-level chunking, Gemini embeddings, the atomic
 status flow) are complete — `pnpm verify:phase3` is the definition of done.
-Phase 4 is in progress: hybrid RRF retrieval (4.1) and the cited-chat
-pipeline — SSE streaming, demo pool + BYO, the reference-validity verifier,
-persisted citations (4.2/4.3) — are shipped. Remaining: the chat UI with
-citation rendering (4.4). Phase 5 adds the OCR worker for scans/images
-(ADR 0005). Read docs/adr/0008–0011 before touching auth, quotas,
-carry-over, retrieval, or any new table; register new tenant tables in
-tenancy.test.ts.
+Phase 4 is COMPLETE — `pnpm verify:phase4` is the definition of done:
+hybrid RRF retrieval (4.1), the cited-chat pipeline with SSE, demo pool +
+BYO, the reference-validity verifier, persisted citations (4.2/4.3), and
+the chat surface with live [n] superscripts and the citation panel (4.4).
+Next is Phase 5 — the OCR worker (ADR 0005): docTR/PaddleOCR on Render for
+scanned PDFs and images, the `ocr-not-available` and `no-text-layer`
+failure codes finally resolving to `ready`. Phase 6 brings the eval suite.
+Read docs/adr/0008–0011 before touching auth, quotas, carry-over,
+retrieval, or any new table; register new tenant tables in tenancy.test.ts.

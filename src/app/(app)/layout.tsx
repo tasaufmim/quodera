@@ -20,6 +20,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             Quodera<sup className="ml-0.5 text-xs font-bold text-primary">1</sup>
           </Link>
           <div className="flex items-center gap-4">
+            <nav className="flex items-center gap-3 text-sm">
+              <Link href="/dashboard" className="text-ink-muted transition hover:text-ink">
+                Documents
+              </Link>
+              <Link href="/chat" className="text-ink-muted transition hover:text-ink">
+                Chat
+              </Link>
+            </nav>
             <span className="font-mono text-xs text-ink-muted">
               {user ? (user.isAnonymous ? "guest" : user.email) : "signed out"}
             </span>
