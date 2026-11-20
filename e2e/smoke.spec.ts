@@ -53,6 +53,45 @@ test("guest journey: one click → workspace → upload → document listed", as
   }
 });
 
+test("chat endpoint: anonymous callers get 401, sessions get an SSE refusal on an empty library", async ({
+  request,
+}) => {
+  // no session → 401 (the three-state gate)
+  const anonymous = await request.post("/api/chat", {
+    data: { content: "When is rent due?" },
+  });
+  expect(anonymous.status()).toBe(401);
+
+  // with a guest session: the library is empty (ingest failed without a key
+  // in CI), so the honest answer is the free refusal over real SSE
+  const guest = await request.post("/api/auth/sign-in/anonymous", {
+    headers: { origin: "http://localhost:3000" },
+    data: {},
+  });
+  expect(guest.ok()).toBeTruthy();
+
+  const setCookieHeader = guest.headers()["set-cookie"] ?? "";
+  const sessionCookie = setCookieHeader
+    .split("\n")
+    .find((cookie: string) => cookie.startsWith("better-auth.session_token"));
+  expect(sessionCookie).toBeTruthy();
+
+  const chat = await request.post("/api/chat", {
+    headers: {
+      origin: "http://localhost:3000",
+      cookie: sessionCookie?.split(";")[0] ?? "",
+    },
+    data: { content: "When is rent due?" },
+  });
+  expect(chat.status()).toBe(200);
+  expect(chat.headers()["content-type"]).toContain("text/event-stream");
+  const body = await chat.text();
+  expect(body).toContain("event: token");
+  expect(body).toContain("don't cover this question");
+  expect(body).toContain("event: citations");
+  expect(body).toContain('"refused":true');
+});
+
 test("health endpoint reports ok without any dependency", async ({ request }) => {
   const response = await request.get("/api/health");
   expect(response.status()).toBe(200);

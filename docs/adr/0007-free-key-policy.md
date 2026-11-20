@@ -25,3 +25,26 @@ The shared OpenRouter key lives **only in server env vars** and is used exclusiv
 | Client-side key (even obfuscated) | scraped in hours; not a risk, a certainty                                                                                 |
 | Generous demo quota (20+/day)     | one crawler exhausts the free daily pool; reviewers see a broken product                                                  |
 | BYO-only, no shared key           | zero abuse risk, but a CV reviewer without an OpenRouter account gets a dead demo — the exact audience this project needs |
+
+## Postscript (2026-11-20 — implementation, with measured free-tier facts)
+
+Phase 4.2 shipped the proxy. Facts from live measurement (daily probes,
+November 2026) that shaped it:
+
+- **The free roster turns over WEEKLY** — of 27 documented `:free` model IDs,
+  none were still free; working models changed between two probe runs five
+  days apart. Hardcoding any single free model would rot the demo silently.
+- **Decision: the demo pool defaults to `openrouter/free`** — OpenRouter's
+  free-models router, which picks a live free model per request and
+  self-heals as the roster turns. `OPENROUTER_DEMO_MODEL` can pin a specific
+  model when wanted.
+- Free-tier caps (measured): **20 RPM / 50 RPD** shared across all demo
+  users. Our per-user 5/day quota plus honest 429s keeps a small user base
+  inside the shared pool; the tripwire is the existing spend alert + the
+  documented "top up $10 → 1000 RPD" escape hatch.
+- BYO default model: `deepseek/deepseek-chat-v3.1` (~$0.25/M in, verified
+  November 2026), overridable via `OPENROUTER_BYO_MODEL` or per-request
+  `model` field. BYO users are infra-rate-limited (60/h), never pool-limited.
+- **Refusals are free**: a retrieval-empty question never consumes the
+  quota — an empty library cannot burn a user's day on "the documents don't
+  cover this." The quota gate sits AFTER retrieval, by design.

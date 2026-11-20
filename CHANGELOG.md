@@ -5,6 +5,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); ver
 
 ## [Unreleased]
 
+### Added — Phase 4.2/4.3: the cited-chat pipeline (LLM proxy + citation contract)
+
+- **`POST /api/chat`** (SSE): session → thread → message → retrieval → (refusal is FREE) → quota → LLM stream → verify → persist. Every generated message is metered (`api_usage`); every answer attaches citations or refuses (GUARDRAILS #5).
+- **The demo pool activates** (ADR 0007): 5 msgs/day for guests AND registered demo users, the shared 429 contract on the 6th. **BYO keys** (`x-openrouter-key`) bypass the pool with their own model + a 60/h infra limit.
+- **Demo model = `openrouter/free` router** (ADR 0007 postscript): the free roster turned over COMPLETELY between weekly probes (Nov 2026) — no hardcoded `:free` ID survives; the router self-heals per request. Free-tier caps measured: 20 RPM / 50 RPD.
+- **The citation contract is live**: numbered evidence blocks with provenance labels, `[n]` markers in streamed prose, a **reference-validity verifier** (every marker must map to a chunk that was actually retrieved — invented citations cannot ship), a final `citations` SSE event with provenance, and an `uncited` flag when the model answers without citing (the UI warns, never fakes).
+- **`citations` table** (8th tenant table, full canary pattern + tenancy registration): marker→chunk rows per assistant message, so reloading a thread re-renders its evidence.
+- **Refusal ordering is a product decision**: retrieval-empty questions short-circuit BEFORE the quota — an empty library can't burn a user's day saying "the documents don't cover this."
+- **OpenAI-compatible SSE parser** unit-tested against mocked streams: token deltas, usage frames, `[DONE]`, and a JSON frame split across network chunks.
+- 17 chat-pipeline tests (live Postgres, scripted LLM, synthetic vectors): cited answer with persisted provenance, uncited flagging, free refusal, demo-pool 429, BYO bypass, thread continuation with per-turn citations, honest 503 without any key, 401 anonymous. Plus e2e: real-SSE refusal on an empty library.
+
 ### Added — Phase 4.1: hybrid retrieval (ADR 0011)
 
 - **`hybridSearch`** — tsvector (OR-joined `to_tsquery`, `ts_rank`) + pgvector cosine per query, fused by reciprocal-rank fusion (`Σ 1/(60 + rank)`, no cross-leg normalization), top 8 chunks; every query runs inside `withUser` (RLS is the belt under the braces). Optional `documentIds` scoping for per-document chat.
