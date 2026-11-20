@@ -204,12 +204,14 @@ erDiagram
 
 Every table above copies the canary pattern: `user_id NOT NULL` + RLS + FORCE + policies + tenancy tests (GUARDRAILS #2).
 
-## 7. Retrieval design 📍 (Phase 4)
+## 7. Retrieval (hybrid shipped in Phase 4.1 — ADR 0011)
 
-- **Hybrid first, always.** Dense vectors are weak on exact identifiers (clause numbers, defined terms, names — the bread and butter of legal docs). Every query runs tsvector (exact/BM25-ish) and pgvector (cosine, HNSW) together; results are fused (RRF).
-- **Rerank** the fused top-k (cross-encoder or LLM-judge) before generation; only rerank winners enter the context window.
-- **Conversational rewriting:** follow-ups like "what about page 3?" are rewritten against thread history before retrieval.
-- **Refusal is a feature:** when fused scores are below threshold, the assistant answers "the documents don't cover this" instead of hallucinating. Evaluated in the golden set (Phase 6).
+- **Hybrid first, always.** Dense vectors are weak on exact identifiers (clause numbers, defined terms, names — the bread and butter of legal docs). Every query runs tsvector (OR-joined terms, `ts_rank`) and pgvector (cosine, HNSW) together inside `withUser`; legs are fused by RRF (`Σ 1/(60 + rank)`), top 8 chunks enter the prompt. No cross-leg score normalization — the honest reason RRF beats weighted sums.
+- **Rerank is deferred, with justification** (ADR 0011): it doubles latency, drains the shared free-model pool, or adds a paid provider. RRF over two strong legs is the baseline; **Phase 6's evals arbitrate** — if citation-precision measurements show fusion missing spans, the rerank stage earns its place with data.
+- **Refusal v1 is empty-only:** both legs return nothing → "the documents don't cover this." Score thresholds are eval-tunable numbers for Phase 6, not guesses shipped in Phase 4.
+- **Honest degradation:** without `GEMINI_API_KEY` the vector leg skips (one logged warning per process) and BM25 keeps serving — `bm25Only` in every result makes the degradation visible to callers.
+- **Conversational rewriting** (follow-ups like "what about page 3?") arrives with the chat orchestration (4.2/4.3), which owns the thread history the rewrite needs.
+- Queries are content: retrieval logs shapes (counts, latency, refused) — never query text (SECURITY §10).
 
 ## 8. Rate limiting
 

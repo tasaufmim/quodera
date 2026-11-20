@@ -5,6 +5,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); ver
 
 ## [Unreleased]
 
+### Added — Phase 4.1: hybrid retrieval (ADR 0011)
+
+- **`hybridSearch`** — tsvector (OR-joined `to_tsquery`, `ts_rank`) + pgvector cosine per query, fused by reciprocal-rank fusion (`Σ 1/(60 + rank)`, no cross-leg normalization), top 8 chunks; every query runs inside `withUser` (RLS is the belt under the braces). Optional `documentIds` scoping for per-document chat.
+- **Rerank deferred with justification** (ADR 0011): latency + demo-pool economics + $0; Phase 6's evals are the arbiter.
+- **Refusal v1 is empty-only** — no invented score thresholds before measurement.
+- **Honest degradation**: no `GEMINI_API_KEY` → BM25-only with one logged warning per process; `bm25Only` rides every result so callers see the mode they got.
+- **Queries are content**: retrieval logs shapes (counts, latency, refused), never query text (SECURITY §10).
+- 12 tests with **synthetic 768-dim vectors** (topic vectors put their mass on one dimension — cosine relevance is hand-controlled): ranking, RRF fusion math (both-leg chunks beat single-leg winners), tenant isolation, document scoping, refusal, BM25-only mode, provenance end-to-end. Two product bugs caught by these tests: `plainto_tsquery` AND-semantics refused valid partial matches (now OR-joined terms), and drizzle's array param binding broke `any()` casts (now per-id params).
+
 ## [0.3.0] — 2026-11-20
 
 ### Added — Phase 3.4: verification gate + release
